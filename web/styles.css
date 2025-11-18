@@ -1,0 +1,17 @@
+:root{
+  --max-width:900px;
+  --accent:#2b6cb0;
+}
+body{font-family:Segoe UI, Roboto, Arial; background:#f7fafc; color:#111; padding:24px}
+.container{max-width:var(--max-width); margin:0 auto; background:#fff; padding:20px; border-radius:8px; box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+h1{margin:0 0 12px}
+.row{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+label{width:160px}
+input[type=file]{flex:1}
+.buttons{gap:8px}
+button{background:var(--accent); color:#fff; border:none; padding:8px 12px; border-radius:6px; cursor:pointer}
+button:disabled{opacity:0.5; cursor:not-allowed}
+table{width:100%; border-collapse:collapse; margin-top:12px}
+th,td{border:1px solid #e2e8f0; padding:8px; text-align:left}
+thead{background:#f1f5f9}
+footer{margin-top:18px; color:#475569}

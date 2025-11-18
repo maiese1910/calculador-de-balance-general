@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Calculador de Balance General - Web</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="container">
+    <h1>Calculador de Balance General</h1>
+
+    <div class="row">
+      <label>Libro Diario (.xlsx)</label>
+      <input id="diaryFile" type="file" accept=".xlsx,.xls" />
+    </div>
+
+    <div class="row">
+      <label>Libro Mayor (.xlsx)</label>
+      <input id="ledgerFile" type="file" accept=".xlsx,.xls" />
+    </div>
+
+    <div class="row buttons">
+      <button id="computeBtn">Generar Balance</button>
+      <button id="exportBtn" disabled>Exportar Excel</button>
+      <button id="saveBtn" disabled>Guardar en Firebase</button>
+    </div>
+
+    <section>
+      <h2>Resultado</h2>
+      <div id="resultArea">
+        <p id="noResult">Aún no hay resultados.</p>
+        <table id="resultTable" hidden>
+          <thead>
+            <tr><th>Cuenta</th><th>Débito</th><th>Crédito</th><th>Saldo</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer>
+      <small>Reemplace `web/firebase.sample.js` por su configuración Firebase en `web/firebase.config.js` para activar Guardado.</small>
+    </footer>
+  </main>
+
+  <!-- Dependencies -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <script src="firebase.sample.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -7,7 +7,11 @@
   const saveBtn = document.getElementById('saveBtn');
   const resultTable = document.getElementById('resultTable');
   const resultTbody = resultTable.querySelector('tbody');
+  const resultTfoot = resultTable.querySelector('tfoot');
   const noResult = document.getElementById('noResult');
+  const currencyToggle = document.getElementById('currencyToggle');
+  const currencySymbol = document.getElementById('currencySymbol');
+  const totalsToggle = document.getElementById('totalsToggle');
 
   let lastBalance = null;
 
@@ -37,6 +41,20 @@
       out[String(k).trim()] = obj[k];
     }
     return out;
+  }
+
+  // Number formatter using user's locale (shows 2 decimals)
+  const nf = new Intl.NumberFormat(navigator.language || 'es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function formatNumber(val) {
+    if (val === null || val === undefined) return '';
+    const n = Number(val);
+    if (Number.isNaN(n)) return '';
+    const formatted = nf.format(n);
+    if (currencyToggle && currencyToggle.checked) {
+      const sym = (currencySymbol && currencySymbol.value) ? currencySymbol.value : '$';
+      return sym + ' ' + formatted;
+    }
+    return formatted;
   }
 
   function computeBalance(diaryRows, ledgerRows) {
@@ -70,16 +88,45 @@
 
   function renderResult(rows) {
     resultTbody.innerHTML = '';
+    // clear footer
+    if (resultTfoot) resultTfoot.innerHTML = '';
     rows.forEach(r => {
       const tr = document.createElement('tr');
       const accountTd = document.createElement('td'); accountTd.textContent = r.Account; tr.appendChild(accountTd);
-      const debitTd = document.createElement('td'); debitTd.textContent = r.Debit; tr.appendChild(debitTd);
-      const creditTd = document.createElement('td'); creditTd.textContent = r.Credit; tr.appendChild(creditTd);
-      const balTd = document.createElement('td'); balTd.textContent = r.Balance; tr.appendChild(balTd);
+      const debitTd = document.createElement('td'); debitTd.textContent = formatNumber(r.Debit); tr.appendChild(debitTd);
+      const creditTd = document.createElement('td'); creditTd.textContent = formatNumber(r.Credit); tr.appendChild(creditTd);
+      const balTd = document.createElement('td'); balTd.textContent = formatNumber(r.Balance); tr.appendChild(balTd);
+      // color by sign
+      if (Number(r.Balance) > 0) balTd.classList.add('balance-positive');
+      else if (Number(r.Balance) < 0) balTd.classList.add('balance-negative');
+      else balTd.classList.add('balance-zero');
       resultTbody.appendChild(tr);
     });
     noResult.hidden = true;
     resultTable.hidden = false;
+
+    // Show totals if enabled
+    if (totalsToggle && totalsToggle.checked && rows.length > 0) {
+      const totals = rows.reduce((acc, r) => {
+        acc.Debit += Number(r.Debit) || 0;
+        acc.Credit += Number(r.Credit) || 0;
+        acc.Balance += Number(r.Balance) || 0;
+        return acc;
+      }, { Debit: 0, Credit: 0, Balance: 0 });
+
+      if (resultTfoot) {
+        const tr = document.createElement('tr');
+        tr.classList.add('totals-row');
+        const th = document.createElement('th'); th.textContent = 'Totales'; th.colSpan = 1; tr.appendChild(th);
+        const debitTd = document.createElement('td'); debitTd.textContent = formatNumber(totals.Debit); tr.appendChild(debitTd);
+        const creditTd = document.createElement('td'); creditTd.textContent = formatNumber(totals.Credit); tr.appendChild(creditTd);
+        const balTd = document.createElement('td'); balTd.textContent = formatNumber(totals.Balance); tr.appendChild(balTd);
+        if (Number(totals.Balance) > 0) balTd.classList.add('balance-positive');
+        else if (Number(totals.Balance) < 0) balTd.classList.add('balance-negative');
+        else balTd.classList.add('balance-zero');
+        resultTfoot.appendChild(tr);
+      }
+    }
   }
 
   computeBtn.addEventListener('click', async () => {

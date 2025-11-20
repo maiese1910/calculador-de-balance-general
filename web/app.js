@@ -47,6 +47,34 @@
     }
   }
 
+  function showSuccessNotification() {
+    // Crear overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'success-overlay';
+
+    // Crear notificación
+    const notification = document.createElement('div');
+    notification.className = 'success-notification';
+    notification.innerHTML = `
+      <div class="icon">🎉</div>
+      <h3>¡Licencia Activada!</h3>
+      <p>Tu aplicación está lista para usar</p>
+    `;
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(notification);
+
+    // Remover después de 2.5 segundos
+    setTimeout(() => {
+      notification.style.animation = 'fadeOut 0.3s ease-out forwards';
+      overlay.style.animation = 'fadeOut 0.3s ease-out forwards';
+      setTimeout(() => {
+        document.body.removeChild(notification);
+        document.body.removeChild(overlay);
+      }, 300);
+    }, 2500);
+  }
+
   // Configurar eventos del modal de licencia
   function setupLicenseModal() {
     const input = document.getElementById('licenseInput');

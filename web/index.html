@@ -44,6 +44,11 @@
     <section>
       <h2>Resultado</h2>
       <div id="resultArea" class="result-card">
+        <div id="statusArea" class="status-area" aria-live="polite"></div>
+          <div id="previewArea" class="preview-area">
+            <pre id="diaryPreview" hidden></pre>
+            <pre id="ledgerPreview" hidden></pre>
+          </div>
         <p id="noResult" class="no-result">Aún no hay resultados.</p>
         <table id="resultTable" hidden>
           <thead>
@@ -65,7 +70,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-  <script src="firebase.sample.js"></script>
+  <script src="firebase-config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

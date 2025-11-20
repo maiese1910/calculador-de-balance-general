@@ -74,10 +74,14 @@ function computeBalance(diaryRows, ledgerRows) {
                 else if (codeVal) accountName = String(codeVal).trim();
             }
             if (!accountName) return;
-            const prev = map.get(accountName) || { Debit: 0, Credit: 0 };
+
+            // Normalize to uppercase
+            const accountKey = accountName.toUpperCase();
+
+            const prev = map.get(accountKey) || { Debit: 0, Credit: 0 };
             prev.Debit += Number(debitVal) || 0;
             prev.Credit += Number(creditVal) || 0;
-            map.set(accountName, prev);
+            map.set(accountKey, prev);
         });
     };
 
@@ -93,37 +97,41 @@ function computeBalance(diaryRows, ledgerRows) {
 }
 
 // Mock data based on user image
-const mockData = [
+const mockDataDiary = [
     {
         "Fecha": "01/11/25",
         "N° Asiento": 1,
         "Código Cta": 1101,
         "Cuenta Contable": "Caja",
-        "Concepto / Detalle": "Inicio de activic",
         "Debe": "10,000.00",
         "Haber": null
-    },
-    {
-        "Fecha": "01/11/25",
-        "N° Asiento": 1,
-        "Código Cta": 3101,
-        "Cuenta Contable": "Capital Social",
-        "Concepto / Detalle": "Inicio de actividades: Aporte d",
-        "Debe": null,
-        "Haber": "10,000.00"
     }
 ];
 
-console.log("Running test with mock data...");
-const result = computeBalance(mockData, []);
+const mockDataLedgerFixed = [
+    {
+        "Cuenta Contable": "1101 - CAJA",
+        "Debe": "5,000.00",
+        "Haber": null
+    }
+];
+
+console.log("Running test with mixed casing...");
+const result = computeBalance(mockDataDiary, mockDataLedgerFixed);
 console.log("Result:", JSON.stringify(result, null, 2));
 
-if (result.length === 2 &&
-    result[0].Account === "1101 - Caja" &&
-    result[0].Debit === 10000 &&
-    result[1].Account === "3101 - Capital Social" &&
-    result[1].Credit === 10000) {
-    console.log("TEST PASSED");
+if (result.length === 1 &&
+    result[0].Account === "1101 - CAJA" &&
+    result[0].Debit === 15000) {
+    console.log("TEST PASSED: Case normalization merged accounts.");
 } else {
-    console.log("TEST FAILED");
+    console.log("TEST FAILED: Accounts not merged.");
+}
+
+console.log("Running test with only Diary...");
+const resultDiaryOnly = computeBalance(mockDataDiary, []);
+if (resultDiaryOnly.length === 1 && resultDiaryOnly[0].Debit === 10000) {
+    console.log("TEST PASSED: Works with only Diary.");
+} else {
+    console.log("TEST FAILED: Diary only failed.");
 }

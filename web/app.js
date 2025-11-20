@@ -199,10 +199,16 @@
           else if (codeVal) accountName = String(codeVal).trim();
         }
         if (!accountName) return;
-        const prev = map.get(account) || { Debit: 0, Credit: 0 };
+        // Normalize to uppercase to merge "Caja" and "CAJA"
+        const accountKey = accountName.toUpperCase();
+
+        const prev = map.get(accountKey) || { Debit: 0, Credit: 0 };
         prev.Debit += Number(debitVal) || 0;
         prev.Credit += Number(creditVal) || 0;
-        map.set(accountName, prev);
+        // Store the original (or first found) casing for display, or just use uppercase?
+        // Let's use the uppercase key as the display name for consistency, or keep the first one found?
+        // Using uppercase ensures consistency.
+        map.set(accountKey, prev);
       });
     };
 
@@ -264,21 +270,21 @@
   computeBtn.addEventListener('click', async () => {
     const diaryFile = diaryInput.files[0];
     const ledgerFile = ledgerInput.files[0];
-    if (!diaryFile || !ledgerFile) {
-      alert('Seleccione ambos archivos: libro diario y libro mayor');
+    if (!diaryFile && !ledgerFile) {
+      alert('Seleccione al menos un archivo: libro diario o libro mayor');
       return;
     }
     try {
       computeBtn.disabled = true;
       setStatus('Leyendo archivos...', 'info');
-      const diaryRows = await readExcelFile(diaryFile);
-      const ledgerRows = await readExcelFile(ledgerFile);
+      const diaryRows = diaryFile ? await readExcelFile(diaryFile) : [];
+      const ledgerRows = ledgerFile ? await readExcelFile(ledgerFile) : [];
       console.log('diaryRows', diaryRows.slice(0, 5));
       console.log('ledgerRows', ledgerRows.slice(0, 5));
       // show counts
       setStatus(`Leído libro diario: ${diaryRows.length} filas. Libro mayor: ${ledgerRows.length} filas.`, 'info');
-      if (!diaryRows.length || !ledgerRows.length) {
-        setStatus('Uno de los archivos no contiene filas legibles. Verifique el formato y que la hoja contiene datos.', 'error');
+      if (!diaryRows.length && !ledgerRows.length) {
+        setStatus('No se encontraron filas legibles en los archivos seleccionados.', 'error');
         exportBtn.disabled = true;
         saveBtn.disabled = true;
         return;

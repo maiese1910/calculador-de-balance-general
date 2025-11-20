@@ -1,14 +1,14 @@
-// app.js - lógica del frontend para leer Excel, calcular balances y (opcional) guardar en Firebase
+// app.js - Lógica del frontend para leer Excel, calcular balances y (opcional) guardar en Firebase
 (() => {
-  // Fix for Electron: if running in Node environment, the CDN script might export as module instead of global.
-  // We explicitly require it if available.
+  // Corrección para Electron: si se ejecuta en un entorno Node, el script CDN podría exportarse como módulo en lugar de global.
+  // Lo requerimos explícitamente si está disponible.
   if (typeof require !== 'undefined' && typeof module !== 'undefined') {
     try {
       if (typeof XLSX === 'undefined') {
         window.XLSX = require('xlsx');
       }
     } catch (e) {
-      console.log('Not running in Electron or xlsx not found via require');
+      console.log('No se está ejecutando en Electron o no se encontró xlsx vía require');
     }
   }
 
@@ -28,6 +28,7 @@
 
   let lastBalance = null;
 
+  // Función para leer un archivo Excel y convertirlo a JSON
   function readExcelFile(file) {
     return new Promise((resolve, reject) => {
       const fr = new FileReader();
@@ -35,19 +36,19 @@
         try {
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
-          // Debug: expose sheet names
-          console.log('Workbook sheets:', workbook.SheetNames);
+          // Depuración: mostrar nombres de las hojas
+          console.log('Hojas del libro:', workbook.SheetNames);
           setStatus(`Hojas detectadas: ${workbook.SheetNames.join(', ')}`, 'info');
 
           const firstName = workbook.SheetNames[0];
           const ws = workbook.Sheets[firstName];
-          // Try parsing to JSON using header row
+          // Intentar analizar a JSON usando la fila de encabezado
           let json = XLSX.utils.sheet_to_json(ws, { defval: null });
 
-          // Fallback: if no rows returned, try parse as array-of-arrays and build objects
+          // Fallback: si no devuelve filas, intentar analizar como matriz de matrices y construir objetos
           if ((!json || json.length === 0)) {
             const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-            // find first row that looks like a header (has some non-null values)
+            // buscar la primera fila que parezca un encabezado (tiene algunos valores no nulos)
             let headerRowIndex = -1;
             for (let i = 0; i < Math.min(5, aoa.length); i++) {
               const row = aoa[i];
@@ -62,7 +63,7 @@
               for (let r = headerRowIndex + 1; r < aoa.length; r++) {
                 const row = aoa[r];
                 if (!row) continue;
-                // build object
+                // construir objeto
                 const obj = {};
                 let any = false;
                 for (let c = 0; c < headers.length; c++) {
@@ -87,6 +88,7 @@
     });
   }
 
+  // Normalizar claves de fila (eliminar espacios en nombres de columnas)
   function normalizeRowKeys(obj) {
     const out = {};
     for (const k of Object.keys(obj)) {
@@ -95,7 +97,7 @@
     return out;
   }
 
-  // Number formatter using user's locale (shows 2 decimals)
+  // Formateador de números usando la configuración regional del usuario (muestra 2 decimales)
   const nf = new Intl.NumberFormat(navigator.language || 'es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   function formatNumber(val) {
     if (val === null || val === undefined) return '';
@@ -129,12 +131,12 @@
     elem.hidden = false;
   }
 
-  // Robust number parser: handle strings like "1.234,56", "1,234.56", "$ 1.234,56", etc.
+  // Analizador de números robusto: maneja cadenas como "1.234,56", "1,234.56", "$ 1.234,56", etc.
   function parseNumberRaw(v) {
     if (v === null || v === undefined || v === '') return 0;
     if (typeof v === 'number') return v;
     let s = String(v).trim();
-    // remove currency symbols and spaces
+    // eliminar símbolos de moneda y espacios
     s = s.replace(/[^0-9,.-]/g, '');
     if (!s) return 0;
 
@@ -143,17 +145,17 @@
 
     if (lastDot > -1 && lastComma > -1) {
       if (lastDot > lastComma) {
-        // US format: 1,234.56 -> remove commas
+        // Formato US: 1,234.56 -> eliminar comas
         s = s.replace(/,/g, '');
       } else {
-        // EU format: 1.234,56 -> remove dots, swap comma to dot
+        // Formato EU: 1.234,56 -> eliminar puntos, cambiar coma a punto
         s = s.replace(/\./g, '').replace(/,/g, '.');
       }
     } else if (lastComma > -1) {
-      // Only comma -> treat as decimal separator (common in simple ES inputs)
+      // Solo coma -> tratar como separador decimal (común en entradas simples en ES)
       s = s.replace(/,/g, '.');
     }
-    // If only dot or no separators, Number() handles it (US format default)
+    // Si solo hay punto o no hay separadores, Number() lo maneja (formato US por defecto)
 
     const n = Number(s);
     return Number.isNaN(n) ? 0 : n;
@@ -166,32 +168,33 @@
     return null;
   }
 
+  // Función principal para calcular el balance
   function computeBalance(diaryRows, ledgerRows) {
     const map = new Map();
     const addRows = rows => {
       rows.forEach(r => {
         const nr = normalizeRowKeys(r);
-        // Try common variations for account
+        // Intentar variaciones comunes para la cuenta
         const account = getFirstValue(nr, ['Account', 'Cuenta', 'account', 'cuenta', 'Cuenta nombre', 'Nombre Cuenta', 'NombreCuenta']);
-        // also try code + name if account missing
+        // también intentar código + nombre si falta la cuenta
         const codeVal = getFirstValue(nr, ['Código Cta', 'Código Cuenta', 'Codigo Cuenta', 'CodigoCuenta', 'Codigo', 'Account Code', 'AccountCode']);
         const nameVal = getFirstValue(nr, ['Cuenta Contable', 'Nombre Cuenta', 'NombreCuenta', 'Account', 'Cuenta', 'account', 'cuenta']);
-        // debit/credit possibilities (include 'Débito Total' / 'Crédito Total')
+        // posibilidades de débito/crédito (incluir 'Débito Total' / 'Crédito Total')
         const debitRaw = getFirstValue(nr, ['Débito Total', 'Debito Total', 'DebitoTotal', 'Debit', 'Débito', 'Debito', 'Debe', 'DEBE', 'debit', 'debe', 'Amount', 'Importe', 'Monto', 'Valor']);
         const creditRaw = getFirstValue(nr, ['Crédito Total', 'Credito Total', 'CreditoTotal', 'Credit', 'Crédito', 'credito', 'Haber', 'HABER', 'credit', 'haber']);
 
         let debitVal = parseNumberRaw(debitRaw);
         let creditVal = parseNumberRaw(creditRaw);
 
-        // If there is a single amount column with signed values and credit is zero, split by sign
+        // Si hay una sola columna de monto con valores firmados y el crédito es cero, dividir por signo
         if ((debitRaw !== null) && (creditRaw === null || creditRaw === undefined || String(creditRaw).trim() === '')) {
-          // treat debitRaw as signed amount
+          // tratar debitRaw como monto firmado
           const amt = parseNumberRaw(debitRaw);
           if (amt < 0) { debitVal = 0; creditVal = Math.abs(amt); }
           else { debitVal = amt; creditVal = 0; }
         }
 
-        // build account string if missing but code/name exist
+        // construir cadena de cuenta si falta pero existen código/nombre
         let accountName = account;
         if (!accountName) {
           if (codeVal && nameVal) accountName = `${String(codeVal).trim()} - ${String(nameVal).trim()}`;
@@ -199,15 +202,13 @@
           else if (codeVal) accountName = String(codeVal).trim();
         }
         if (!accountName) return;
-        // Normalize to uppercase to merge "Caja" and "CAJA"
+        // Normalizar a mayúsculas para fusionar "Caja" y "CAJA"
         const accountKey = accountName.toUpperCase();
 
         const prev = map.get(accountKey) || { Debit: 0, Credit: 0 };
         prev.Debit += Number(debitVal) || 0;
         prev.Credit += Number(creditVal) || 0;
-        // Store the original (or first found) casing for display, or just use uppercase?
-        // Let's use the uppercase key as the display name for consistency, or keep the first one found?
-        // Using uppercase ensures consistency.
+        // Almacenar la clave en mayúsculas para consistencia
         map.set(accountKey, prev);
       });
     };
@@ -219,14 +220,14 @@
     for (const [account, vals] of map.entries()) {
       result.push({ Account: account, Debit: vals.Debit, Credit: vals.Credit, Balance: vals.Debit - vals.Credit });
     }
-    // Sort by Account
+    // Ordenar por Cuenta
     result.sort((a, b) => a.Account.localeCompare(b.Account));
     return result;
   }
 
   function renderResult(rows) {
     resultTbody.innerHTML = '';
-    // clear footer
+    // limpiar pie de página
     if (resultTfoot) resultTfoot.innerHTML = '';
     rows.forEach(r => {
       const tr = document.createElement('tr');
@@ -234,7 +235,7 @@
       const debitTd = document.createElement('td'); debitTd.textContent = formatNumber(r.Debit); tr.appendChild(debitTd);
       const creditTd = document.createElement('td'); creditTd.textContent = formatNumber(r.Credit); tr.appendChild(creditTd);
       const balTd = document.createElement('td'); balTd.textContent = formatNumber(r.Balance); tr.appendChild(balTd);
-      // color by sign
+      // colorear por signo
       if (Number(r.Balance) > 0) balTd.classList.add('balance-positive');
       else if (Number(r.Balance) < 0) balTd.classList.add('balance-negative');
       else balTd.classList.add('balance-zero');
@@ -243,7 +244,7 @@
     noResult.hidden = true;
     resultTable.hidden = false;
 
-    // Show totals if enabled
+    // Mostrar totales si está habilitado
     if (totalsToggle && totalsToggle.checked && rows.length > 0) {
       const totals = rows.reduce((acc, r) => {
         acc.Debit += Number(r.Debit) || 0;
@@ -281,7 +282,7 @@
       const ledgerRows = ledgerFile ? await readExcelFile(ledgerFile) : [];
       console.log('diaryRows', diaryRows.slice(0, 5));
       console.log('ledgerRows', ledgerRows.slice(0, 5));
-      // show counts
+      // mostrar conteos
       setStatus(`Leído libro diario: ${diaryRows.length} filas. Libro mayor: ${ledgerRows.length} filas.`, 'info');
       if (!diaryRows.length && !ledgerRows.length) {
         setStatus('No se encontraron filas legibles en los archivos seleccionados.', 'error');
@@ -302,7 +303,7 @@
       renderResult(balance);
       exportBtn.disabled = false;
       setStatus(`Balance generado: ${balance.length} cuentas.`, 'success');
-      // enable save if firebase configured
+      // habilitar guardar si firebase está configurado
       saveBtn.disabled = !(window.firebaseConfig && window.firebaseConfig.projectId);
     } catch (err) {
       console.error(err);
@@ -321,7 +322,7 @@
     XLSX.writeFile(wb, 'balance_general.xlsx');
   });
 
-  // Firebase init (compat)
+  // Inicialización de Firebase (compat)
   function initFirebaseIfConfigured() {
     try {
       if (window.firebaseConfig && window.firebaseConfig.projectId) {
@@ -353,7 +354,7 @@
     }
   });
 
-  // Try to initialize Firebase on load
+  // Intentar inicializar Firebase al cargar
   initFirebaseIfConfigured();
 
 })();

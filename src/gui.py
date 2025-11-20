@@ -45,7 +45,7 @@ class App(tk.Tk):
             ledger_df = pd.read_excel(ledger_path)
             balance = compute_balance_from_diary_and_ledger(diary_df, ledger_df)
 
-            # Ask where to save
+            # Preguntar dónde guardar
             save_path = filedialog.asksaveasfilename(defaultextension='.xlsx', filetypes=[('Excel','*.xlsx')])
             if save_path:
                 export_balance_to_excel(balance, save_path)

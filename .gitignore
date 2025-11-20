@@ -51,6 +51,12 @@ Thumbs.db
 
 # Node modules (for web folder, if any tooling is used)
 /web/node_modules/
+node_modules/
+
+# Electron packaged applications (too large for GitHub)
+calculador-balance-desktop-win32-x64/
+dist/
+out/
 __pycache__/
 .venv/
 *.pyc

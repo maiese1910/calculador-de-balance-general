@@ -1,4 +1,3 @@
-
 // Test script for Excel parsing logic
 
 function normalizeRowKeys(obj) {
@@ -96,6 +95,16 @@ function computeBalance(diaryRows, ledgerRows) {
     return result;
 }
 
+// --- Export Logic Simulation ---
+function prepareExportData(balanceData) {
+    return balanceData.map(row => ({
+        'Cuenta': row.Account,
+        'Debe': row.Debit,
+        'Haber': row.Credit,
+        'Saldo': row.Balance
+    }));
+}
+
 // Mock data based on user image
 const mockDataDiary = [
     {
@@ -134,4 +143,18 @@ if (resultDiaryOnly.length === 1 && resultDiaryOnly[0].Debit === 10000) {
     console.log("TEST PASSED: Works with only Diary.");
 } else {
     console.log("TEST FAILED: Diary only failed.");
+}
+
+console.log("Running test for Export Data Preparation...");
+const exportData = prepareExportData(result);
+console.log("Export Data:", JSON.stringify(exportData, null, 2));
+
+if (exportData.length === 1 &&
+    exportData[0].Cuenta === "1101 - CAJA" &&
+    exportData[0].Debe === 15000 &&
+    exportData[0].Haber === 0 &&
+    exportData[0].Saldo === 15000) {
+    console.log("TEST PASSED: Export data translated correctly.");
+} else {
+    console.log("TEST FAILED: Export data translation incorrect.");
 }

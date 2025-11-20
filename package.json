@@ -21,11 +21,13 @@
       "target": [
         "portable",
         "nsis"
-      ]
+      ],
+      "icon": "logo-usm.jpg"
     },
     "files": [
       "main.js",
       "package.json",
+      "logo-usm.jpg",
       "web/**/*"
     ]
   },

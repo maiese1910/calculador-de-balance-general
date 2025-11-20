@@ -9,7 +9,7 @@ function createWindow() {
             nodeIntegration: true,
             contextIsolation: false // Simplified for this migration
         },
-        icon: path.join(__dirname, 'web/favicon.ico') // Optional: if icon exists
+        icon: path.join(__dirname, 'logo-usm.jpg')
     });
 
     // Load the index.html from the web folder

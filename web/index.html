@@ -1,17 +1,20 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Calculador de Balance General - Web</title>
+  <title>Calculador de Balance General</title>
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
 </head>
+
 <body>
   <main class="container">
     <header class="site-header">
+      <img src="logo-usm.jpg" alt="Universidad Santa María" class="logo-usm" />
       <h1>Calculador de Balance General</h1>
       <p class="subtitle">Carga tu libro diario y libro mayor (.xlsx) y genera un balance general exportable.</p>
     </header>
@@ -38,21 +41,25 @@
     <div class="row buttons">
       <button id="computeBtn" class="btn primary">Generar Balance</button>
       <button id="exportBtn" class="btn outline" disabled>Exportar Excel</button>
-      <button id="saveBtn" class="btn outline" disabled>Guardar en Firebase</button>
     </div>
 
     <section>
       <h2>Resultado</h2>
       <div id="resultArea" class="result-card">
         <div id="statusArea" class="status-area" aria-live="polite"></div>
-          <div id="previewArea" class="preview-area">
-            <pre id="diaryPreview" hidden></pre>
-            <pre id="ledgerPreview" hidden></pre>
-          </div>
+        <div id="previewArea" class="preview-area">
+          <pre id="diaryPreview" hidden></pre>
+          <pre id="ledgerPreview" hidden></pre>
+        </div>
         <p id="noResult" class="no-result">Aún no hay resultados.</p>
         <table id="resultTable" hidden>
           <thead>
-            <tr><th>Cuenta</th><th>Débito</th><th>Crédito</th><th>Saldo</th></tr>
+            <tr>
+              <th>Cuenta</th>
+              <th>Débito</th>
+              <th>Crédito</th>
+              <th>Saldo</th>
+            </tr>
           </thead>
           <tbody></tbody>
           <tfoot></tfoot>
@@ -61,16 +68,17 @@
     </section>
 
     <footer>
-      <small>Reemplace `web/firebase.sample.js` por su configuración Firebase en `web/firebase.config.js` para activar Guardado.</small>
+      <small>Programa hecho por estudiantes de la Universidad Santa María</small>
     </footer>
   </main>
 
   <!-- Dependencies -->
+  <!-- Fix for Electron: prevent CDN scripts from seeing 'module' and exporting themselves instead of setting window global -->
+  <script>if (typeof module === 'object') { window.module = module; module = undefined; }</script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>if (window.module) module = window.module;</script>
 
-  <script src="firebase-config.js"></script>
   <script src="app.js"></script>
 </body>
+
 </html>

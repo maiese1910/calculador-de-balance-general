@@ -1,15 +1,22 @@
 // app.js - Lógica del frontend para leer Excel, calcular balances y (opcional) guardar en Firebase
 (() => {
-  // Corrección para Electron: si se ejecuta en un entorno Node, el script CDN podría exportarse como módulo en lugar de global.
-  // Lo requerimos explícitamente si está disponible.
-  if (typeof require !== 'undefined' && typeof module !== 'undefined') {
+  // Corrección para Electron: intentar cargar xlsx vía require primero
+  if (typeof require !== 'undefined') {
     try {
-      if (typeof XLSX === 'undefined') {
-        window.XLSX = require('xlsx');
+      const localXLSX = require('xlsx');
+      if (localXLSX) {
+        window.XLSX = localXLSX;
+        console.log('XLSX cargado vía require (Electron)');
       }
     } catch (e) {
-      console.log('No se está ejecutando en Electron o no se encontró xlsx vía require');
+      console.warn('No se pudo cargar xlsx vía require:', e);
     }
+  }
+
+  // Verificar si XLSX está disponible
+  if (typeof XLSX === 'undefined') {
+    console.error('La librería XLSX no está cargada.');
+    // No mostramos alert aquí para no molestar al inicio, pero se notará al intentar usarlo.
   }
 
   const diaryInput = document.getElementById('diaryFile');
@@ -80,10 +87,14 @@
 
           resolve(json);
         } catch (err) {
+          console.error('Error parseando Excel:', err);
           reject(err);
         }
       };
-      fr.onerror = reject;
+      fr.onerror = (err) => {
+        console.error('Error de lectura de archivo (FileReader):', err);
+        reject(err);
+      };
       fr.readAsArrayBuffer(file);
     });
   }
@@ -316,7 +327,47 @@
 
   exportBtn.addEventListener('click', () => {
     if (!lastBalance) return;
-    const ws = XLSX.utils.json_to_sheet(lastBalance);
+
+    // 1. Traducir datos y preparar para exportación
+    const dataForExport = lastBalance.map(row => ({
+      'Cuenta': row.Account,
+      'Debe': row.Debit,
+      'Haber': row.Credit,
+      'Saldo': row.Balance
+    }));
+
+    // 2. Crear hoja de trabajo
+    const ws = XLSX.utils.json_to_sheet(dataForExport);
+
+    // 3. Ajustar anchos de columna (visual "más ordenado")
+    // Se estima un ancho basado en el contenido, con un mínimo y máximo razonable
+    const wscols = [
+      { wch: 50 }, // Cuenta (ancho generoso para nombres largos)
+      { wch: 15 }, // Debe
+      { wch: 15 }, // Haber
+      { wch: 15 }  // Saldo
+    ];
+    ws['!cols'] = wscols;
+
+    // 4. Aplicar formato de números a las celdas de montos
+    // El rango de datos empieza en la fila 2 (la 1 es encabezado)
+    // Las columnas son B (Debe), C (Haber), D (Saldo) -> índices 1, 2, 3
+    const range = XLSX.utils.decode_range(ws['!ref']);
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      // Columnas 1 (Debe), 2 (Haber), 3 (Saldo)
+      for (let C = 1; C <= 3; ++C) {
+        const cell_address = { c: C, r: R };
+        const cell_ref = XLSX.utils.encode_cell(cell_address);
+        if (!ws[cell_ref]) continue;
+
+        // Formato: #,##0.00 (separador de miles, 2 decimales)
+        // Nota: El formato exacto puede depender de la configuración regional de Excel del usuario,
+        // pero este es un estándar común.
+        ws[cell_ref].z = '#,##0.00';
+        ws[cell_ref].t = 'n'; // asegurar tipo número
+      }
+    }
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Balance');
     XLSX.writeFile(wb, 'balance_general.xlsx');

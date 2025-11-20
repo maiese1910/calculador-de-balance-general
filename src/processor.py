@@ -94,5 +94,34 @@ def compute_balance_from_diary_and_ledger(diary_df: pd.DataFrame, ledger_df: pd.
 
 def export_balance_to_excel(balance_df: pd.DataFrame, path: str) -> None:
     """Exporta el DataFrame de balance a un archivo Excel."""
-    balance_df.to_excel(path, index=False)
+    # Usar ExcelWriter para aplicar formatos
+    with pd.ExcelWriter(path, engine='openpyxl') as writer:
+        balance_df.to_excel(writer, index=False, sheet_name='Balance')
+        
+        # Obtener la hoja de trabajo y el libro
+        workbook = writer.book
+        worksheet = writer.sheets['Balance']
+        
+        # Formatos
+        # Nota: openpyxl no usa un objeto 'Format' como xlsxwriter, se modifica la celda directamente o se usa NamedStyle
+        # Pero para simplicidad en pandas, podemos iterar o ajustar columnas.
+        
+        # Ajustar anchos de columna
+        worksheet.column_dimensions['A'].width = 50  # Cuenta
+        worksheet.column_dimensions['B'].width = 15  # Debe
+        worksheet.column_dimensions['C'].width = 15  # Haber
+        worksheet.column_dimensions['D'].width = 15  # Saldo
+        
+        # Aplicar formato de número a las columnas B, C, D
+        # Iterar sobre las filas de datos (asumiendo que empiezan en la fila 2)
+        from openpyxl.styles import NamedStyle
+        
+        number_style = NamedStyle(name='number_style', number_format='#,##0.00')
+        
+        # Iterar sobre las columnas de datos (B, C, D son índices 2, 3, 4 en openpyxl 1-based)
+        for col_idx in range(2, 5): # 2, 3, 4
+            col_letter = chr(64 + col_idx) # B, C, D
+            for cell in worksheet[col_letter]:
+                if cell.row > 1: # Saltar encabezado
+                    cell.number_format = '#,##0.00'
 

@@ -436,43 +436,16 @@ footer {
   border-left: 4px solid #ffc107;
 }
 
-.balance-status-details {
-  font-size: 0.9rem;
-  margin-top: 8px;
-  opacity: 0.9;
+.balance-status-details {}
+
+50% {
+  transform: translate(-50%, -50%) scale(1.1);
 }
 
-/* Notificación de éxito */
-.success-notification {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%) scale(0.7);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 40px 60px;
-  border-radius: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  z-index: 2000;
-  text-align: center;
-  opacity: 0;
-  animation: successPop 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+100% {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
 }
-
-@keyframes successPop {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.7);
-  }
-
-  50% {
-    transform: translate(-50%, -50%) scale(1.1);
-  }
-
-  100% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
 }
 
 .success-notification .icon {

@@ -1,3 +1,4 @@
+
 Calculador de Balance General (Proyecto de la Facultad)
 
 Proyecto para generar un balance general a partir de archivos Excel (libro diario y libro mayor).
@@ -56,3 +57,4 @@ Flujo de desarrollo recomendado para los 3 programadores:
 - Agregar issues y milestones para pruebas y validación con datos reales
 
 Si quieren, puedo crear un repositorio remoto en GitHub/GitLab y subir esto (necesitaré acceso/token o que ustedes lo creen y me den permiso).
+

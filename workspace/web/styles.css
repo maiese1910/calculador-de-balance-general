@@ -1,0 +1,68 @@
+:root{
+  --max-width:900px;
+  --accent:#2563eb; /* azul vivo */
+  --muted:#6b7280;
+  --bg:#f7fafc;
+  --surface:#ffffff;
+  --radius:12px;
+}
+html,body{height:100%}
+body{
+  font-family: 'Inter', Segoe UI, Roboto, Arial, sans-serif;
+  background: linear-gradient(180deg,#f7fafc 0%, #eef2f7 100%);
+  color:#0f172a;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:32px;
+}
+.container{
+  width:100%;
+  max-width:var(--max-width);
+  background:var(--surface);
+  padding:28px;
+  border-radius:var(--radius);
+  box-shadow:0 10px 30px rgba(2,6,23,0.08);
+  border:1px solid rgba(15,23,42,0.04);
+}
+h1{margin:0 0 6px; font-weight:700; font-size:1.6rem}
+.site-header .subtitle{margin:6px 0 16px; color:var(--muted); font-size:0.95rem}
+.row{display:flex; align-items:center; gap:12px; margin-bottom:12px}
+label{width:160px; color:var(--muted); font-weight:600}
+input[type=file]{flex:1}
+.buttons{gap:10px; display:flex; align-items:center}
+.btn{background:var(--accent); color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600}
+.btn.outline{background:transparent; color:var(--accent); border:1px solid rgba(37,99,235,0.12)}
+.btn.primary{box-shadow:0 6px 18px rgba(37,99,235,0.12)}
+.btn:disabled{opacity:0.5; cursor:not-allowed}
+
+.result-card{margin-top:14px; padding:14px; background:linear-gradient(180deg, rgba(14,165,233,0.02), rgba(255,255,255,0)); border-radius:10px}
+.no-result{color:var(--muted); margin:6px 0}
+
+table{width:100%; border-collapse:separate; border-spacing:0; margin-top:12px; font-size:0.95rem}
+thead th{background:#f8fafc; text-align:left; padding:10px; font-weight:600; color:var(--muted); border-bottom:1px solid #eef2f6}
+tbody tr:nth-child(even){background:#fbfdff}
+th,td{padding:10px; border-bottom:1px solid #f1f5f9}
+td:nth-child(2), td:nth-child(3), td:nth-child(4){text-align:right; color:#0b1220}
+td:nth-child(4){font-weight:700}
+
+footer{margin-top:18px; color:var(--muted); font-size:0.85rem}
+
+/* Responsive */
+@media (max-width:720px){
+  .row{flex-direction:column; align-items:stretch}
+  label{width:auto}
+  .buttons{flex-direction:column; align-items:stretch}
+  .btn{width:100%}
+}
+
+/* Balance color helpers */
+.balance-positive{color:#16a34a} /* green */
+.balance-negative{color:#dc2626} /* red */
+.balance-zero{color:var(--muted)}
+
+.small-controls .controls{display:flex; gap:10px; align-items:center}
+.small-controls .inline{display:inline-flex; align-items:center; gap:6px; color:var(--muted); font-weight:600}
+.currency-symbol{width:44px; padding:6px 8px; border-radius:6px; border:1px solid rgba(2,6,23,0.06); font-weight:600}
+.totals-row th, .totals-row td{font-weight:700; background:linear-gradient(180deg, rgba(15,23,42,0.02), rgba(255,255,255,0));}
+.totals-row td{border-top:2px solid rgba(15,23,42,0.04)}

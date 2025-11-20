@@ -325,7 +325,7 @@
     }
   });
 
-  exportBtn.addEventListener('click', () => {
+  exportBtn.addEventListener('click', async () => {
     if (!lastBalance) return;
 
     // 1. Traducir datos y preparar para exportación
@@ -340,7 +340,6 @@
     const ws = XLSX.utils.json_to_sheet(dataForExport);
 
     // 3. Ajustar anchos de columna (visual "más ordenado")
-    // Se estima un ancho basado en el contenido, con un mínimo y máximo razonable
     const wscols = [
       { wch: 50 }, // Cuenta (ancho generoso para nombres largos)
       { wch: 15 }, // Debe
@@ -350,27 +349,56 @@
     ws['!cols'] = wscols;
 
     // 4. Aplicar formato de números a las celdas de montos
-    // El rango de datos empieza en la fila 2 (la 1 es encabezado)
-    // Las columnas son B (Debe), C (Haber), D (Saldo) -> índices 1, 2, 3
     const range = XLSX.utils.decode_range(ws['!ref']);
     for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      // Columnas 1 (Debe), 2 (Haber), 3 (Saldo)
       for (let C = 1; C <= 3; ++C) {
         const cell_address = { c: C, r: R };
         const cell_ref = XLSX.utils.encode_cell(cell_address);
         if (!ws[cell_ref]) continue;
 
-        // Formato: #,##0.00 (separador de miles, 2 decimales)
-        // Nota: El formato exacto puede depender de la configuración regional de Excel del usuario,
-        // pero este es un estándar común.
         ws[cell_ref].z = '#,##0.00';
-        ws[cell_ref].t = 'n'; // asegurar tipo número
+        ws[cell_ref].t = 'n';
       }
     }
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Balance');
-    XLSX.writeFile(wb, 'balance_general.xlsx');
+
+    // Detectar si estamos en Electron
+    const isElectron = typeof require !== 'undefined' && typeof process !== 'undefined' && process.versions && process.versions.electron;
+
+    if (isElectron) {
+      // En Electron: usar diálogo de guardado
+      try {
+        const { dialog } = require('electron').remote || require('@electron/remote');
+        const path = require('path');
+
+        const result = await dialog.showSaveDialog({
+          title: 'Guardar Balance General',
+          defaultPath: path.join(require('os').homedir(), 'Downloads', 'balance_general.xlsx'),
+          filters: [
+            { name: 'Excel Files', extensions: ['xlsx'] },
+            { name: 'All Files', extensions: ['*'] }
+          ]
+        });
+
+        if (!result.canceled && result.filePath) {
+          XLSX.writeFile(wb, result.filePath);
+          alert('Archivo guardado exitosamente en: ' + result.filePath);
+        }
+      } catch (err) {
+        console.error('Error usando diálogo de Electron:', err);
+        // Fallback: guardar en Descargas
+        const path = require('path');
+        const os = require('os');
+        const filePath = path.join(os.homedir(), 'Downloads', 'balance_general.xlsx');
+        XLSX.writeFile(wb, filePath);
+        alert('Archivo guardado en: ' + filePath);
+      }
+    } else {
+      // En navegador: descarga normal
+      XLSX.writeFile(wb, 'balance_general.xlsx');
+    }
   });
 
   // Inicialización de Firebase (compat)

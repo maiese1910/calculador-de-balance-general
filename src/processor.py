@@ -21,6 +21,22 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
     # Create a cleaner version of columns: strip whitespace and lowercase
     clean_cols = {c: str(c).strip().lower() for c in df.columns}
     
+    # Check for Code + Name combination pattern
+    code_variations = ['código cuenta', 'codigo cuenta', 'codigocuenta', 'codigo', 'código cta', 'account code']
+    name_variations = ['cuenta contable', 'nombre cuenta', 'nombrecuenta', 'account name']
+    
+    code_col = next((orig for orig, clean in clean_cols.items() if clean in code_variations), None)
+    name_col = next((orig for orig, clean in clean_cols.items() if clean in name_variations), None)
+    
+    df_processed = df.copy()
+    
+    # If both present, combine them and drop originals to avoid collision
+    if code_col and name_col:
+        df_processed['Account'] = df_processed[code_col].astype(str).str.strip() + ' - ' + df_processed[name_col].astype(str).str.strip()
+        df_processed = df_processed.drop(columns=[code_col, name_col])
+        # Re-calc clean cols for the remaining columns
+        clean_cols = {c: str(c).strip().lower() for c in df_processed.columns}
+    
     # Invert mapping for lookup
     lookup = {}
     for std, variations in column_mapping.items():
@@ -33,7 +49,7 @@ def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         if clean in lookup:
             new_names[original] = lookup[clean]
             
-    return df.rename(columns=new_names)
+    return df_processed.rename(columns=new_names)
 
 def compute_balance_from_diary_and_ledger(diary_df: pd.DataFrame, ledger_df: pd.DataFrame) -> pd.DataFrame:
     """Compute a simple balance general from diary and ledger DataFrames.

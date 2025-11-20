@@ -1,5 +1,17 @@
 // app.js - lógica del frontend para leer Excel, calcular balances y (opcional) guardar en Firebase
 (() => {
+  // Fix for Electron: if running in Node environment, the CDN script might export as module instead of global.
+  // We explicitly require it if available.
+  if (typeof require !== 'undefined' && typeof module !== 'undefined') {
+    try {
+      if (typeof XLSX === 'undefined') {
+        window.XLSX = require('xlsx');
+      }
+    } catch (e) {
+      console.log('Not running in Electron or xlsx not found via require');
+    }
+  }
+
   const diaryInput = document.getElementById('diaryFile');
   const ledgerInput = document.getElementById('ledgerFile');
   const computeBtn = document.getElementById('computeBtn');
@@ -125,16 +137,24 @@
     // remove currency symbols and spaces
     s = s.replace(/[^0-9,.-]/g, '');
     if (!s) return 0;
-    // If contains both '.' and ',', assume '.' thousands and ',' decimal (common in ES locales)
-    if (s.indexOf('.') > -1 && s.indexOf(',') > -1) {
-      // remove dots, replace comma with dot
-      s = s.replace(/\./g, '').replace(/,/g, '.');
-    } else if (s.indexOf(',') > -1 && s.indexOf('.') === -1) {
-      // only comma -> treat as decimal separator
+
+    const lastDot = s.lastIndexOf('.');
+    const lastComma = s.lastIndexOf(',');
+
+    if (lastDot > -1 && lastComma > -1) {
+      if (lastDot > lastComma) {
+        // US format: 1,234.56 -> remove commas
+        s = s.replace(/,/g, '');
+      } else {
+        // EU format: 1.234,56 -> remove dots, swap comma to dot
+        s = s.replace(/\./g, '').replace(/,/g, '.');
+      }
+    } else if (lastComma > -1) {
+      // Only comma -> treat as decimal separator (common in simple ES inputs)
       s = s.replace(/,/g, '.');
-    } else {
-      // only dots or only digits -> leave as is (dots are decimal or thousands, Number will parse)
     }
+    // If only dot or no separators, Number() handles it (US format default)
+
     const n = Number(s);
     return Number.isNaN(n) ? 0 : n;
   }
@@ -152,13 +172,13 @@
       rows.forEach(r => {
         const nr = normalizeRowKeys(r);
         // Try common variations for account
-        const account = getFirstValue(nr, ['Account','Cuenta','account','cuenta','Cuenta contable','CuentaContable','Cuenta nombre','Nombre Cuenta','NombreCuenta']);
+        const account = getFirstValue(nr, ['Account', 'Cuenta', 'account', 'cuenta', 'Cuenta nombre', 'Nombre Cuenta', 'NombreCuenta']);
         // also try code + name if account missing
-        const codeVal = getFirstValue(nr, ['Código Cuenta','Codigo Cuenta','CodigoCuenta','Codigo','Account Code','AccountCode']);
-        const nameVal = getFirstValue(nr, ['Nombre Cuenta','NombreCuenta','Account','Cuenta','account','cuenta']);
+        const codeVal = getFirstValue(nr, ['Código Cta', 'Código Cuenta', 'Codigo Cuenta', 'CodigoCuenta', 'Codigo', 'Account Code', 'AccountCode']);
+        const nameVal = getFirstValue(nr, ['Cuenta Contable', 'Nombre Cuenta', 'NombreCuenta', 'Account', 'Cuenta', 'account', 'cuenta']);
         // debit/credit possibilities (include 'Débito Total' / 'Crédito Total')
-        const debitRaw = getFirstValue(nr, ['Débito Total','Debito Total','DebitoTotal','Debit','Débito','Debito','Debe','DEBE','debit','debe','Amount','Importe','Monto','Valor']);
-        const creditRaw = getFirstValue(nr, ['Crédito Total','Credito Total','CreditoTotal','Credit','Crédito','credito','Haber','HABER','credit','haber']);
+        const debitRaw = getFirstValue(nr, ['Débito Total', 'Debito Total', 'DebitoTotal', 'Debit', 'Débito', 'Debito', 'Debe', 'DEBE', 'debit', 'debe', 'Amount', 'Importe', 'Monto', 'Valor']);
+        const creditRaw = getFirstValue(nr, ['Crédito Total', 'Credito Total', 'CreditoTotal', 'Credit', 'Crédito', 'credito', 'Haber', 'HABER', 'credit', 'haber']);
 
         let debitVal = parseNumberRaw(debitRaw);
         let creditVal = parseNumberRaw(creditRaw);
@@ -253,8 +273,8 @@
       setStatus('Leyendo archivos...', 'info');
       const diaryRows = await readExcelFile(diaryFile);
       const ledgerRows = await readExcelFile(ledgerFile);
-      console.log('diaryRows', diaryRows.slice(0,5));
-      console.log('ledgerRows', ledgerRows.slice(0,5));
+      console.log('diaryRows', diaryRows.slice(0, 5));
+      console.log('ledgerRows', ledgerRows.slice(0, 5));
       // show counts
       setStatus(`Leído libro diario: ${diaryRows.length} filas. Libro mayor: ${ledgerRows.length} filas.`, 'info');
       if (!diaryRows.length || !ledgerRows.length) {

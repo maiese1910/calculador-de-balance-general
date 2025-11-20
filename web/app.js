@@ -16,7 +16,91 @@
   // Verificar si XLSX está disponible
   if (typeof XLSX === 'undefined') {
     console.error('La librería XLSX no está cargada.');
-    // No mostramos alert aquí para no molestar al inicio, pero se notará al intentar usarlo.
+  }
+
+  // ========================================
+  // SISTEMA DE LICENCIAS
+  // ========================================
+
+  // Verificar licencia al cargar la página
+  function checkLicenseOnStartup() {
+    if (!hasValidLicense()) {
+      showLicenseModal();
+    } else {
+      hideLicenseModal();
+    }
+  }
+
+  function showLicenseModal() {
+    const modal = document.getElementById('licenseModal');
+    if (modal) {
+      modal.hidden = false;
+      modal.style.display = 'flex';
+    }
+  }
+
+  function hideLicenseModal() {
+    const modal = document.getElementById('licenseModal');
+    if (modal) {
+      modal.hidden = true;
+      modal.style.display = 'none';
+    }
+  }
+
+  // Configurar eventos del modal de licencia
+  function setupLicenseModal() {
+    const input = document.getElementById('licenseInput');
+    const btn = document.getElementById('activateBtn');
+    const error = document.getElementById('licenseError');
+
+    if (!input || !btn || !error) {
+      console.error('Elementos del modal de licencia no encontrados');
+      return;
+    }
+
+    // Formatear input automáticamente
+    input.addEventListener('input', (e) => {
+      let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+      let formatted = '';
+      for (let i = 0; i < value.length && i < 16; i++) {
+        if (i > 0 && i % 4 === 0) formatted += '-';
+        formatted += value[i];
+      }
+      e.target.value = formatted;
+    });
+
+    // Manejar activación
+    btn.addEventListener('click', () => {
+      const key = input.value.trim().toUpperCase();
+
+      if (validateLicenseKey(key)) {
+        saveLicense(key);
+        hideLicenseModal();
+        error.hidden = true;
+        alert('✅ Licencia activada correctamente');
+      } else {
+        error.textContent = '❌ Código de licencia inválido. Verifica el formato.';
+        error.hidden = false;
+      }
+    });
+
+    // Permitir activar con Enter
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        btn.click();
+      }
+    });
+  }
+
+  // Inicializar sistema de licencias cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      checkLicenseOnStartup();
+      setupLicenseModal();
+    });
+  } else {
+    checkLicenseOnStartup();
+    setupLicenseModal();
   }
 
   const diaryInput = document.getElementById('diaryFile');
@@ -127,6 +211,77 @@
     statusArea.textContent = msg;
     statusArea.classList.remove('info', 'error', 'success');
     statusArea.classList.add(type);
+  }
+
+  // ========================================
+  // VALIDACIÓN DE BALANCE CUADRADO
+  // ========================================
+
+  /**
+   * Verifica si el balance está cuadrado (Total Debe = Total Haber)
+   * @param {Array} balance - Array de objetos con Debit y Credit
+   * @returns {Object} - {balanced: boolean, totalDebit, totalCredit, difference, message}
+   */
+  function checkBalanced(balance) {
+    let totalDebit = 0;
+    let totalCredit = 0;
+
+    balance.forEach(row => {
+      totalDebit += row.Debit || 0;
+      totalCredit += row.Credit || 0;
+    });
+
+    const difference = Math.abs(totalDebit - totalCredit);
+    const tolerance = 0.01; // Tolerancia de 1 centavo
+
+    if (difference < tolerance) {
+      return {
+        balanced: true,
+        totalDebit,
+        totalCredit,
+        difference: 0,
+        message: '✅ Balance cuadrado'
+      };
+    } else {
+      return {
+        balanced: false,
+        totalDebit,
+        totalCredit,
+        difference,
+        message: `⚠️ Balance descuadrado - Diferencia: ${formatNumber(difference)}`
+      };
+    }
+  }
+
+  /**
+   * Muestra el estado del balance (cuadrado/descuadrado)
+   */
+  function showBalanceStatus(balanceCheck) {
+    const statusDiv = document.getElementById('balanceStatus');
+    if (!statusDiv) return;
+
+    statusDiv.hidden = false;
+    statusDiv.className = 'balance-status';
+
+    if (balanceCheck.balanced) {
+      statusDiv.classList.add('balanced');
+      statusDiv.innerHTML = `
+        <div>${balanceCheck.message}</div>
+        <div class="balance-status-details">
+          Total Debe: ${formatNumber(balanceCheck.totalDebit)} | 
+          Total Haber: ${formatNumber(balanceCheck.totalCredit)}
+        </div>
+      `;
+    } else {
+      statusDiv.classList.add('unbalanced');
+      statusDiv.innerHTML = `
+        <div>${balanceCheck.message}</div>
+        <div class="balance-status-details">
+          Total Debe: ${formatNumber(balanceCheck.totalDebit)} | 
+          Total Haber: ${formatNumber(balanceCheck.totalCredit)}
+        </div>
+      `;
+    }
   }
 
   const diaryPreview = document.getElementById('diaryPreview');
@@ -314,6 +469,11 @@
       renderResult(balance);
       exportBtn.disabled = false;
       setStatus(`Balance generado: ${balance.length} cuentas.`, 'success');
+
+      // Validar si el balance está cuadrado
+      const balanceCheck = checkBalanced(balance);
+      showBalanceStatus(balanceCheck);
+
       // habilitar guardar si firebase está configurado
       saveBtn.disabled = !(window.firebaseConfig && window.firebaseConfig.projectId);
     } catch (err) {

@@ -12,6 +12,20 @@
 </head>
 
 <body>
+  <!-- Modal de Licencia -->
+  <div id="licenseModal" class="modal">
+    <div class="modal-content">
+      <h2>🔐 Activación de Licencia</h2>
+      <p>Por favor, ingresa tu código de licencia para usar la aplicación.</p>
+      <div class="license-input-group">
+        <input type="text" id="licenseInput" placeholder="XXXX-XXXX-XXXX-XXXX" maxlength="19" />
+        <button id="activateBtn" class="btn primary">Activar</button>
+      </div>
+      <p id="licenseError" class="license-error" hidden></p>
+      <p class="license-help">Formato: XXXX-XXXX-XXXX-XXXX</p>
+    </div>
+  </div>
+
   <main class="container">
     <header class="site-header">
       <img src="logo-usm.jpg" alt="Universidad Santa María" class="logo-usm" />
@@ -44,6 +58,9 @@
       <button id="saveBtn" class="btn outline" disabled>Guardar en Firebase</button>
     </div>
 
+    <!-- Área de estado del balance (cuadrado/descuadrado) -->
+    <div id="balanceStatus" class="balance-status" hidden></div>
+
     <section>
       <h2>Resultado</h2>
       <div id="resultArea" class="result-card">
@@ -74,7 +91,6 @@
   </main>
 
   <!-- Dependencies -->
-  <!-- Fix for Electron: prevent CDN scripts from seeing 'module' and exporting themselves instead of setting window global -->
   <script>if (typeof module === 'object') { window.module = module; module = undefined; }</script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
   <script>if (window.module) module = window.module;</script>
@@ -82,6 +98,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <script src="firebase-config.js"></script>
+  <script src="license.js"></script>
   <script src="app.js"></script>
 </body>
 

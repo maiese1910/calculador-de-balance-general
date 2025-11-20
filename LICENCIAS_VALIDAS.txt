@@ -1,0 +1,18 @@
+CÓDIGOS DE LICENCIA VÁLIDOS
+Calculador de Balance General
+============================================================
+
+ 1. CS23-3AL1-R9NO-234D
+ 2. 2E80-7QTI-05S3-4A3D
+ 3. 6DYE-VTU8-LJJ0-3BD2
+ 4. U44O-6QKB-IANN-4139
+ 5. B535-CDZ8-I30I-ED29
+ 6. H0NE-R2QC-SX5D-FE02
+ 7. 85F3-4Q5C-UW84-0D7E
+ 8. EVTK-T17J-PUNN-0874
+ 9. Q3JZ-HTBZ-4E0U-BE2F
+10. GGB4-2805-16WS-0041
+
+============================================================
+Usa cualquiera de estos códigos para activar la aplicación.
+La licencia se guardará automáticamente en localStorage.

@@ -80,10 +80,22 @@
     const input = document.getElementById('licenseInput');
     const btn = document.getElementById('activateBtn');
     const error = document.getElementById('licenseError');
+    // Nuevo: Botón de reset
+    const resetLicenseBtn = document.getElementById('resetLicense');
 
     if (!input || !btn || !error) {
       console.error('Elementos del modal de licencia no encontrados');
       return;
+    }
+
+    // Listener para resetear licencia
+    if (resetLicenseBtn) {
+      resetLicenseBtn.addEventListener('click', () => {
+        if (confirm('¿Seguro que deseas eliminar la licencia guardada y reiniciar?')) {
+          removeLicense(); // Función de license.js
+          window.location.reload();
+        }
+      });
     }
 
     // Formatear input automáticamente

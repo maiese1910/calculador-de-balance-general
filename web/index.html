@@ -61,6 +61,50 @@
     <!-- Área de estado del balance (cuadrado/descuadrado) -->
     <div id="balanceStatus" class="balance-status" hidden></div>
 
+    <!-- Dashboard Financiero (Nuevo) -->
+    <div id="financialDashboard" class="dashboard-container" hidden>
+      <!-- KPIs -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <h4>Liquidez Corriente</h4>
+          <span id="kpiLiquidity" class="kpi-value">0.00</span>
+          <small>Activo C. / Pasivo C.</small>
+        </div>
+        <div class="kpi-card">
+          <h4>Endeudamiento</h4>
+          <span id="kpiDebt" class="kpi-value">0.00%</span>
+          <small>Pasivo Total / Activo Total</small>
+        </div>
+        <div class="kpi-card">
+          <h4>Margen Neto</h4>
+          <span id="kpiMargin" class="kpi-value">0.00%</span>
+          <small>Utilidad / Ingresos</small>
+        </div>
+        <div class="kpi-card highlight">
+          <h4>Resultado Neto</h4>
+          <span id="kpiNetResult" class="kpi-value">$ 0.00</span>
+          <small>Utilidad/Pérdida Ejercicio</small>
+        </div>
+      </div>
+
+      <!-- Gráficos -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Ecuación Patrimonial</h3>
+          <!-- Canvas con tamaño fijo relativo -->
+          <div style="position: relative; height: 300px;">
+            <canvas id="chartAssets"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <h3>Resultados</h3>
+          <div style="position: relative; height: 300px;">
+            <canvas id="chartIncome"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <section>
       <h2>Resultado</h2>
       <div id="resultArea" class="result-card">
@@ -86,7 +130,12 @@
     </section>
 
     <footer>
-      <small>Programa hecho por estudiantes de la Universidad Santa María</small>
+      <p>
+        Calculador de Balance General &copy; 2026<br>
+        <span id="resetLicense"
+          style="cursor: pointer; text-decoration: underline; font-size: 0.8em; color: #9aa8bc;">Restablecer Licencia
+          (Demo)</span>
+      </p>
     </footer>
   </main>
 
@@ -96,6 +145,7 @@
   <script>if (window.module) module = window.module;</script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="chart.js"></script>
 
   <script src="firebase-config.js"></script>
   <script src="license.js"></script>

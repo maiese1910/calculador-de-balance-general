@@ -410,56 +410,188 @@
     addRows(diaryRows);
     addRows(ledgerRows);
 
-    const result = [];
+    // Clasificación de cuentas
+    // 1, 2, 3 -> Reales (Situación Financiera)
+    // 4, 5, 6, etc -> Nominales (Estado de Resultados)
+    // Si no hay código, intentar por nombre
+    const classifyAccount = (name) => {
+      const n = name.trim();
+      // Intentar detectar código numérico al inicio
+      const match = n.match(/^(\d+)/);
+      if (match) {
+        const firstDigit = parseInt(match[1][0]);
+        if (firstDigit >= 1 && firstDigit <= 3) return 'REAL'; // Activo, Pasivo, Patrimonio
+        if (firstDigit >= 4) return 'NOMINAL'; // Ingresos, Gastos, Costos
+      }
+      
+      // Fallback por palabras clave
+      const lower = n.toLowerCase();
+      if (lower.includes('capital') || lower.includes('acumulada') || lower.includes('banco') || lower.includes('caja') || lower.includes('activo') || lower.includes('pasivo') || lower.includes('patrimonio') || lower.includes('por pagar') || lower.includes('por cobrar')) return 'REAL';
+      if (lower.includes('venta') || lower.includes('ingreso') || lower.includes('gasto') || lower.includes('costo') || lower.includes('sueldo') || lower.includes('servicio') || lower.includes('honorario') || lower.includes('depreciacion')) return 'NOMINAL';
+      
+      return 'REAL'; // Default conservador
+    };
+
+    const trialBalance = [];
+    let nominalAccounts = [];
+    let realAccounts = [];
+
+    // Totales para Estado de Resultados
+    let incomeStatementDebits = 0;
+    let incomeStatementCredits = 0;
+
     for (const [account, vals] of map.entries()) {
-      result.push({ Account: account, Debit: vals.Debit, Credit: vals.Credit, Balance: vals.Debit - vals.Credit });
+      const bal = vals.Debit - vals.Credit;
+      const row = { Account: account, Debit: vals.Debit, Credit: vals.Credit, Balance: bal };
+      
+      // 1. Balance de Comprobación (Todos)
+      trialBalance.push(row);
+
+      // 2. Clasificar
+      const type = classifyAccount(account);
+      if (type === 'NOMINAL') {
+        nominalAccounts.push(row);
+        incomeStatementDebits += vals.Debit;
+        incomeStatementCredits += vals.Credit;
+      } else {
+        realAccounts.push(row);
+      }
     }
-    // Ordenar por Cuenta
-    result.sort((a, b) => a.Account.localeCompare(b.Account));
-    return result;
+
+    // Ordenar
+    trialBalance.sort((a, b) => a.Account.localeCompare(b.Account));
+    nominalAccounts.sort((a, b) => a.Account.localeCompare(b.Account));
+    realAccounts.sort((a, b) => a.Account.localeCompare(b.Account));
+
+    // Calcular Utilidad/Pérdida del Ejercicio
+    // Ingresos (Crédito) - Egresos (Débito)
+    // Si Créditos > Débitos = Utilidad (Saldo Acreedor)
+    const netIncome = incomeStatementCredits - incomeStatementDebits;
+    
+    // Crear objeto para la Utilidad en el Estado de Situación Financiera
+    // Se agrega al Patrimonio (Haber si es utilidad)
+    const netIncomeRow = {
+      Account: 'UTILIDAD (PÉRDIDA) DEL EJERCICIO',
+      Debit: netIncome < 0 ? Math.abs(netIncome) : 0, 
+      Credit: 0,
+      Balance: -netIncome 
+    };
+    
+    if (netIncome >= 0) {
+        netIncomeRow.Credit = netIncome;
+    } else {
+        netIncomeRow.Debit = Math.abs(netIncome);
+    }
+
+    // Agregar Utilidad a Cuentas Reales (Situación Financiera)
+    const financialPosition = [...realAccounts, netIncomeRow];
+    financialPosition.sort((a, b) => a.Account.localeCompare(b.Account));
+
+    return {
+      trialBalance,
+      incomeStatement: nominalAccounts,
+      financialPosition,
+      netIncome
+    };
   }
 
-  function renderResult(rows) {
-    resultTbody.innerHTML = '';
-    // limpiar pie de página
-    if (resultTfoot) resultTfoot.innerHTML = '';
-    rows.forEach(r => {
-      const tr = document.createElement('tr');
-      const accountTd = document.createElement('td'); accountTd.textContent = r.Account; tr.appendChild(accountTd);
-      const debitTd = document.createElement('td'); debitTd.textContent = formatNumber(r.Debit); tr.appendChild(debitTd);
-      const creditTd = document.createElement('td'); creditTd.textContent = formatNumber(r.Credit); tr.appendChild(creditTd);
-      const balTd = document.createElement('td'); balTd.textContent = formatNumber(r.Balance); tr.appendChild(balTd);
-      // colorear por signo
-      if (Number(r.Balance) > 0) balTd.classList.add('balance-positive');
-      else if (Number(r.Balance) < 0) balTd.classList.add('balance-negative');
-      else balTd.classList.add('balance-zero');
-      resultTbody.appendChild(tr);
-    });
-    noResult.hidden = true;
-    resultTable.hidden = false;
-
-    // Mostrar totales si está habilitado
-    if (totalsToggle && totalsToggle.checked && rows.length > 0) {
-      const totals = rows.reduce((acc, r) => {
+  // Helper para renderizar una tabla específica
+  function createTableHTML(title, rows, showTotals = true) {
+    if (!rows || !rows.length) return `<div class="table-section"><h3>${title}</h3><p>No hay cuentas.</p></div>`;
+    
+    const totals = rows.reduce((acc, r) => {
         acc.Debit += Number(r.Debit) || 0;
         acc.Credit += Number(r.Credit) || 0;
         acc.Balance += Number(r.Balance) || 0;
         return acc;
-      }, { Debit: 0, Credit: 0, Balance: 0 });
+    }, { Debit: 0, Credit: 0, Balance: 0 });
 
-      if (resultTfoot) {
-        const tr = document.createElement('tr');
-        tr.classList.add('totals-row');
-        const th = document.createElement('th'); th.textContent = 'Totales'; th.colSpan = 1; tr.appendChild(th);
-        const debitTd = document.createElement('td'); debitTd.textContent = formatNumber(totals.Debit); tr.appendChild(debitTd);
-        const creditTd = document.createElement('td'); creditTd.textContent = formatNumber(totals.Credit); tr.appendChild(creditTd);
-        const balTd = document.createElement('td'); balTd.textContent = formatNumber(totals.Balance); tr.appendChild(balTd);
-        if (Number(totals.Balance) > 0) balTd.classList.add('balance-positive');
-        else if (Number(totals.Balance) < 0) balTd.classList.add('balance-negative');
-        else balTd.classList.add('balance-zero');
-        resultTfoot.appendChild(tr);
-      }
+    let html = `
+      <div class="table-section">
+        <h3>${title}</h3>
+        <table class="result-table">
+          <thead>
+            <tr>
+              <th>Cuenta</th>
+              <th>Debe</th>
+              <th>Haber</th>
+              <th>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    rows.forEach(r => {
+      let balClass = '';
+      if (Number(r.Balance) > 0) balClass = 'balance-positive';
+      else if (Number(r.Balance) < 0) balClass = 'balance-negative';
+      else balClass = 'balance-zero';
+
+      html += `
+        <tr>
+          <td>${r.Account}</td>
+          <td>${formatNumber(r.Debit)}</td>
+          <td>${formatNumber(r.Credit)}</td>
+          <td class="${balClass}">${formatNumber(r.Balance)}</td>
+        </tr>
+      `;
+    });
+
+    html += `</tbody>`;
+
+    if (showTotals) {
+      let balTotalClass = '';
+      if (totals.Balance > 0) balTotalClass = 'balance-positive';
+      else if (totals.Balance < 0) balTotalClass = 'balance-negative';
+      else balTotalClass = 'balance-zero';
+
+      html += `
+          <tfoot>
+            <tr class="totals-row">
+              <th>Totales</th>
+              <td>${formatNumber(totals.Debit)}</td>
+              <td>${formatNumber(totals.Credit)}</td>
+              <td class="${balTotalClass}">${formatNumber(totals.Balance)}</td>
+            </tr>
+          </tfoot>
+      `;
     }
+    
+    html += `</table></div>`;
+    return html;
+  }
+
+  function renderResult(data) {
+    const container = document.getElementById('resultTablesContainer');
+    if (!container) {
+        // Si no existe el contenedor específico, usar resultArea o limpiarlo
+        // Vamos a crear dinámicamente o asumir que reemplazamos el resultTable original
+        // Por compatibilidad, ocultamos la tabla original y usaremos un div nuevo
+    }
+    
+    // Ocultar elementos viejos
+    if (resultTbody) resultTbody.innerHTML = '';
+    if (resultTfoot) resultTfoot.innerHTML = '';
+    resultTable.hidden = true;
+    noResult.hidden = true;
+
+    // Buscar o crear contenedor de reportes
+    let reportContainer = document.getElementById('reportContainer');
+    if (!reportContainer) {
+        reportContainer = document.createElement('div');
+        reportContainer.id = 'reportContainer';
+        document.getElementById('resultArea').appendChild(reportContainer);
+    }
+    reportContainer.innerHTML = '';
+
+    // 1. Balance de Comprobación
+    reportContainer.innerHTML += createTableHTML('Balance de Comprobación', data.trialBalance);
+
+    // 2. Estado de Resultados
+    reportContainer.innerHTML += createTableHTML('Estado de Resultados (Cuentas Nominales)', data.incomeStatement);
+
+    // 3. Estado de Situación Financiera
+    reportContainer.innerHTML += createTableHTML('Estado de Situación Financiera (Cuentas Reales)', data.financialPosition);
   }
 
   computeBtn.addEventListener('click', async () => {
@@ -485,21 +617,21 @@
         return;
       }
 
-      setStatus('Calculando balance...', 'info');
-      const balance = computeBalance(diaryRows, ledgerRows);
-      lastBalance = balance;
-      if (!balance || !balance.length) {
+      setStatus('Calculando balances y estados financieros...', 'info');
+      const balanceData = computeBalance(diaryRows, ledgerRows);
+      lastBalance = balanceData;
+      if (!balanceData || !balanceData.trialBalance || !balanceData.trialBalance.length) {
         setStatus('No se encontraron cuentas tras el cálculo. Compruebe los encabezados de columnas (Account / Cuenta / Cuenta contable).', 'error');
         exportBtn.disabled = true;
         saveBtn.disabled = true;
         return;
       }
-      renderResult(balance);
+      renderResult(balanceData); 
       exportBtn.disabled = false;
-      setStatus(`Balance generado: ${balance.length} cuentas.`, 'success');
+      setStatus(`Estados financieros generados correctamente.`, 'success');
 
-      // Validar si el balance está cuadrado
-      const balanceCheck = checkBalanced(balance);
+      // Validar si el balance de comprobación está cuadrado
+      const balanceCheck = checkBalanced(balanceData.trialBalance);
       showBalanceStatus(balanceCheck);
 
       // habilitar guardar si firebase está configurado
@@ -516,58 +648,52 @@
   exportBtn.addEventListener('click', async () => {
     if (!lastBalance) return;
 
-    // 1. Traducir datos y preparar para exportación
-    const dataForExport = lastBalance.map(row => ({
-      'Cuenta': row.Account,
-      'Debe': row.Debit,
-      'Haber': row.Credit,
-      'Saldo': row.Balance
-    }));
-
-    // 2. Crear hoja de trabajo
-    const ws = XLSX.utils.json_to_sheet(dataForExport);
-
-    // 3. Ajustar anchos de columna (visual "más ordenado")
-    const wscols = [
-      { wch: 50 }, // Cuenta (ancho generoso para nombres largos)
-      { wch: 15 }, // Debe
-      { wch: 15 }, // Haber
-      { wch: 15 }  // Saldo
-    ];
-    ws['!cols'] = wscols;
-
-    // 4. Aplicar formato de números a las celdas de montos
-    const range = XLSX.utils.decode_range(ws['!ref']);
-    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      for (let C = 1; C <= 3; ++C) {
-        const cell_address = { c: C, r: R };
-        const cell_ref = XLSX.utils.encode_cell(cell_address);
-        if (!ws[cell_ref]) continue;
-
-        ws[cell_ref].z = '#,##0.00';
-        ws[cell_ref].t = 'n';
-      }
-    }
-
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Balance');
+
+    const createSheet = (rows, sheetName) => {
+        const data = rows.map(row => ({
+          'Cuenta': row.Account,
+          'Debe': row.Debit,
+          'Haber': row.Credit,
+          'Saldo': row.Balance
+        }));
+
+        const ws = XLSX.utils.json_to_sheet(data);
+        const wscols = [{ wch: 50 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+        ws['!cols'] = wscols;
+
+        // Formatos
+        const range = XLSX.utils.decode_range(ws['!ref']);
+        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+          for (let C = 1; C <= 3; ++C) {
+            const cell_address = { c: C, r: R };
+            const cell_ref = XLSX.utils.encode_cell(cell_address);
+            if (ws[cell_ref]) {
+                ws[cell_ref].z = '#,##0.00';
+                ws[cell_ref].t = 'n';
+            }
+          }
+        }
+        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+    };
+
+    createSheet(lastBalance.trialBalance, 'Balance Comprobación');
+    createSheet(lastBalance.incomeStatement, 'Estado Resultados');
+    createSheet(lastBalance.financialPosition, 'Situación Financiera');
 
     // Detectar si estamos en Electron
     const isElectron = typeof require !== 'undefined' && typeof process !== 'undefined' && process.versions && process.versions.electron;
 
     if (isElectron) {
-      // En Electron: usar diálogo de guardado
       try {
         const { dialog } = require('electron').remote || require('@electron/remote');
         const path = require('path');
+        const os = require('os');
 
         const result = await dialog.showSaveDialog({
-          title: 'Guardar Balance General',
-          defaultPath: path.join(require('os').homedir(), 'Downloads', 'balance_general.xlsx'),
-          filters: [
-            { name: 'Excel Files', extensions: ['xlsx'] },
-            { name: 'All Files', extensions: ['*'] }
-          ]
+          title: 'Guardar Estados Financieros',
+          defaultPath: path.join(os.homedir(), 'Downloads', 'estados_financieros.xlsx'),
+          filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
         });
 
         if (!result.canceled && result.filePath) {
@@ -576,16 +702,14 @@
         }
       } catch (err) {
         console.error('Error usando diálogo de Electron:', err);
-        // Fallback: guardar en Descargas
         const path = require('path');
         const os = require('os');
-        const filePath = path.join(os.homedir(), 'Downloads', 'balance_general.xlsx');
+        const filePath = path.join(os.homedir(), 'Downloads', 'estados_financieros.xlsx');
         XLSX.writeFile(wb, filePath);
         alert('Archivo guardado en: ' + filePath);
       }
     } else {
-      // En navegador: descarga normal
-      XLSX.writeFile(wb, 'balance_general.xlsx');
+      XLSX.writeFile(wb, 'estados_financieros.xlsx');
     }
   });
 
@@ -609,7 +733,8 @@
       saveBtn.disabled = true;
       const doc = {
         createdAt: new Date().toISOString(),
-        balance: lastBalance
+        balance: lastBalance.trialBalance, // Guardar solo el trialBalance o todo? guardemos solo trialBalance por compatibilidad o todo
+        fullReport: lastBalance // Guardar todo por si acaso
       };
       const ref = await window._firestore.collection('balances').add(doc);
       alert('Balance guardado con id: ' + ref.id);

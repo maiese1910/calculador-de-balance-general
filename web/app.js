@@ -423,12 +423,12 @@
         if (firstDigit >= 1 && firstDigit <= 3) return 'REAL'; // Activo, Pasivo, Patrimonio
         if (firstDigit >= 4) return 'NOMINAL'; // Ingresos, Gastos, Costos
       }
-      
+
       // Fallback por palabras clave
       const lower = n.toLowerCase();
       if (lower.includes('capital') || lower.includes('acumulada') || lower.includes('banco') || lower.includes('caja') || lower.includes('activo') || lower.includes('pasivo') || lower.includes('patrimonio') || lower.includes('por pagar') || lower.includes('por cobrar')) return 'REAL';
       if (lower.includes('venta') || lower.includes('ingreso') || lower.includes('gasto') || lower.includes('costo') || lower.includes('sueldo') || lower.includes('servicio') || lower.includes('honorario') || lower.includes('depreciacion')) return 'NOMINAL';
-      
+
       return 'REAL'; // Default conservador
     };
 
@@ -443,7 +443,7 @@
     for (const [account, vals] of map.entries()) {
       const bal = vals.Debit - vals.Credit;
       const row = { Account: account, Debit: vals.Debit, Credit: vals.Credit, Balance: bal };
-      
+
       // 1. Balance de Comprobación (Todos)
       trialBalance.push(row);
 
@@ -467,25 +467,61 @@
     // Ingresos (Crédito) - Egresos (Débito)
     // Si Créditos > Débitos = Utilidad (Saldo Acreedor)
     const netIncome = incomeStatementCredits - incomeStatementDebits;
-    
+
     // Crear objeto para la Utilidad en el Estado de Situación Financiera
     // Se agrega al Patrimonio (Haber si es utilidad)
     const netIncomeRow = {
       Account: 'UTILIDAD (PÉRDIDA) DEL EJERCICIO',
-      Debit: netIncome < 0 ? Math.abs(netIncome) : 0, 
+      Debit: netIncome < 0 ? Math.abs(netIncome) : 0,
       Credit: 0,
-      Balance: -netIncome 
+      Balance: -netIncome
     };
-    
+
     if (netIncome >= 0) {
-        netIncomeRow.Credit = netIncome;
+      netIncomeRow.Credit = netIncome;
     } else {
-        netIncomeRow.Debit = Math.abs(netIncome);
+      netIncomeRow.Debit = Math.abs(netIncome);
     }
 
     // Agregar Utilidad a Cuentas Reales (Situación Financiera)
     const financialPosition = [...realAccounts, netIncomeRow];
     financialPosition.sort((a, b) => a.Account.localeCompare(b.Account));
+
+    // ===================================
+    // ANÁLISIS VERTICAL
+    // ===================================
+
+    // Calcular Bases
+    // Para Situación Financiera: Base = Total Activos (Sumar positivos de financialPosition)
+    // Para Resultados: Base = Total Ingresos (Sumar negativos de incomeStatement, ya que ingresos son acreedores)
+
+    let totalAssets = financialPosition.reduce((acc, r) => {
+      const bal = Number(r.Balance);
+      if (bal > 0) return acc + bal; // Asumimos Saldo Deudor = Activo
+      return acc;
+    }, 0);
+
+    let totalRevenue = incomeStatement.reduce((acc, r) => {
+      const bal = Number(r.Balance);
+      if (bal < 0) return acc + Math.abs(bal); // Ingresos son acreedores (-)
+      return acc;
+    }, 0);
+
+    // Asignar Porcentajes
+    financialPosition.forEach(r => {
+      const bal = Math.abs(Number(r.Balance));
+      r.Percentage = totalAssets ? (bal / totalAssets) : 0;
+    });
+
+    incomeStatement.forEach(r => {
+      const bal = Math.abs(Number(r.Balance));
+      r.Percentage = totalRevenue ? (bal / totalRevenue) : 0;
+    });
+
+    // En Balance de Comprobación no suele hacerse análisis vertical respecto a un solo total, 
+    // pero podemos dejarlo en 0 o calcular respecto al total del libro mayor si quisiéramos.
+    // Lo dejaremos vacío.
+    trialBalance.forEach(r => { r.Percentage = 0; });
 
     return {
       trialBalance,
@@ -496,14 +532,14 @@
   }
 
   // Helper para renderizar una tabla específica
-  function createTableHTML(title, rows, showTotals = true) {
+  function createTableHTML(title, rows, showTotals = true, showPercentage = false) {
     if (!rows || !rows.length) return `<div class="table-section"><h3>${title}</h3><p>No hay cuentas.</p></div>`;
-    
+
     const totals = rows.reduce((acc, r) => {
-        acc.Debit += Number(r.Debit) || 0;
-        acc.Credit += Number(r.Credit) || 0;
-        acc.Balance += Number(r.Balance) || 0;
-        return acc;
+      acc.Debit += Number(r.Debit) || 0;
+      acc.Credit += Number(r.Credit) || 0;
+      acc.Balance += Number(r.Balance) || 0;
+      return acc;
     }, { Debit: 0, Credit: 0, Balance: 0 });
 
     let html = `
@@ -516,6 +552,7 @@
               <th>Debe</th>
               <th>Haber</th>
               <th>Saldo</th>
+              ${showPercentage ? '<th>% A.V.</th>' : ''}
             </tr>
           </thead>
           <tbody>
@@ -527,12 +564,18 @@
       else if (Number(r.Balance) < 0) balClass = 'balance-negative';
       else balClass = 'balance-zero';
 
+      let percStr = '';
+      if (showPercentage && r.Percentage !== undefined) {
+        percStr = (r.Percentage * 100).toFixed(2) + '%';
+      }
+
       html += `
         <tr>
           <td>${r.Account}</td>
           <td>${formatNumber(r.Debit)}</td>
           <td>${formatNumber(r.Credit)}</td>
           <td class="${balClass}">${formatNumber(r.Balance)}</td>
+          ${showPercentage ? `<td class="text-right">${percStr}</td>` : ''}
         </tr>
       `;
     });
@@ -552,23 +595,204 @@
               <td>${formatNumber(totals.Debit)}</td>
               <td>${formatNumber(totals.Credit)}</td>
               <td class="${balTotalClass}">${formatNumber(totals.Balance)}</td>
+               ${showPercentage ? '<td></td>' : ''}
             </tr>
           </tfoot>
       `;
     }
-    
+
     html += `</table></div>`;
     return html;
+  }
+
+  // ========================================
+  // DASHBOARD & GRÁFICOS
+  // ========================================
+
+  let charts = {}; // Guardar instancias de Chart.js para destruirlas al actualizar
+
+  function calculateKPIs(data) {
+    const { financialPosition, incomeStatement, netIncome } = data;
+
+    // Helper para sumar saldo de cuentas que coincidan con un criterio
+    const sumAccounts = (list, keyword, isAsset = false) => {
+      return list.reduce((acc, r) => {
+        // Simplificación: buscar por nombre
+        const name = r.Account.toLowerCase();
+        if (name.includes(keyword)) {
+          return acc + Number(r.Balance);
+        }
+        return acc;
+      }, 0);
+    };
+
+    // Calcular Activo Total, Pasivo Total, Patrimonio Total
+    // Como financialPosition incluye la Utilidad, debemos separarlo.
+    // Suposición simplificada: 
+    // - Activo: Saldo Deudor (positivo en nuestra lógica si normalizamos, pero aquí Balance = Debe - Haber)
+    //   Activos tienen saldo Deudor (Positivo). Pasivos/Patrimonio tienen saldo Acreedor (Negativo).
+
+    let totalAssets = 0;
+    let totalLiabilities = 0;
+    let totalEquity = 0;
+
+    financialPosition.forEach(r => {
+      const bal = Number(r.Balance);
+      // Heurística simple basada en signo y nombre para clasificación macro
+      // En contabilidad estricta:
+      // Activo: Saldo Deudor (+)
+      // Pasivo: Saldo Acreedor (-)
+      // Patrimonio: Saldo Acreedor (-)
+      // Pero hay contra-cuentas. Usaremos el clasificador 'classifyAccount' si pudiéramos, pero ya tenemos la lista Real.
+
+      // Mejor aproximación: Usar el primer dígito si existe
+      const match = r.Account.trim().match(/^(\d+)/);
+      if (match) {
+        const digit = parseInt(match[1][0]);
+        if (digit === 1) totalAssets += bal;
+        else if (digit === 2) totalLiabilities += Math.abs(bal); // Pasivo suele ser negativo, tomamos valor absoluto
+        else if (digit === 3) totalEquity += Math.abs(bal);
+      } else {
+        // Fallback por signo
+        if (bal > 0) totalAssets += bal;
+        else {
+          // Difícil distinguir Pasivo de Patrimonio sin códigos.
+          // Asumiremos que si dice "Capital" o "Utilidad" es Patrimonio, resto Pasivo.
+          const name = r.Account.toLowerCase();
+          if (name.includes('capital') || name.includes('utilidad') || name.includes('superavit') || name.includes('reserva')) {
+            totalEquity += Math.abs(bal);
+          } else {
+            totalLiabilities += Math.abs(bal);
+          }
+        }
+      }
+    });
+
+    // Activo Corriente y Pasivo Corriente (Aproximación por nombre "Corriente" o "Circulante" o cajas/bancos)
+    // Esto es difícil de automatizar sin un plan de cuentas estricto.
+    // Usaremos Total Activo / Total Pasivo como proxy si no detectamos "Corriente".
+    let currentAssets = financialPosition.reduce((acc, r) => {
+      const n = r.Account.toLowerCase();
+      if ((n.includes('activo') && (n.includes('corriente') || n.includes('circulante'))) || n.includes('caja') || n.includes('banco'))
+        return acc + Number(r.Balance);
+      return acc;
+    }, 0);
+    // Si no detectamos nada específico, usamos un % arbitrario o el total (caso PYME simple)
+    if (currentAssets === 0) currentAssets = totalAssets;
+
+    let currentLiabilities = financialPosition.reduce((acc, r) => {
+      const n = r.Account.toLowerCase();
+      if ((n.includes('pasivo') && (n.includes('corriente') || n.includes('circulante'))) || n.includes('corto plazo'))
+        return acc + Math.abs(Number(r.Balance));
+      return acc;
+    }, 0);
+    if (currentLiabilities === 0) currentLiabilities = totalLiabilities;
+
+    // Ingresos Totales (Ventas)
+    const totalRevenue = incomeStatement.reduce((acc, r) => {
+      // Ingresos son Acreedores (Negativos en nuestra lógica Balance = Debe - Haber? No, Haber es crédito. Ingresos aumentan por Haber)
+      // Check computeBalance: Balance = Debit - Credit.
+      // Ingresos: Debit 0, Credit 1000 -> Balance -1000.
+      // Gastos: Debit 500, Credit 0 -> Balance 500.
+      if (r.Balance < 0) return acc + Math.abs(Number(r.Balance));
+      return acc;
+    }, 0);
+
+    return {
+      liquidity: currentLiabilities ? (currentAssets / currentLiabilities) : 0,
+      debtRatio: totalAssets ? (totalLiabilities / totalAssets) : 0,
+      netMargin: totalRevenue ? (netIncome / totalRevenue) : 0, // netIncome es Ingresos - Gastos
+      netResult: netIncome,
+      totalAssets,
+      totalLiabilities,
+      totalEquity,
+      totalRevenue,
+      totalExpenses: totalRevenue - netIncome
+    };
+  }
+
+  function renderCharts(kpis) {
+    if (typeof Chart === 'undefined') return;
+
+    // Chart.defaults.font.family = "'Inter', sans-serif";
+    const ctxAssets = document.getElementById('chartAssets').getContext('2d');
+    const ctxIncome = document.getElementById('chartIncome').getContext('2d');
+
+    // Destruir anteriores
+    if (charts.assets) charts.assets.destroy();
+    if (charts.income) charts.income.destroy();
+
+    // 1. Ecuación Patrimonial (Doughnut)
+    charts.assets = new Chart(ctxAssets, {
+      type: 'doughnut',
+      data: {
+        labels: ['Pasivo', 'Patrimonio'],
+        datasets: [{
+          data: [kpis.totalLiabilities, kpis.totalEquity],
+          backgroundColor: ['#dc3545', '#0d6efd'], // Rojo, Azul
+          hoverOffset: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom' },
+          title: { display: true, text: `Activo Total: ${formatNumber(kpis.totalAssets)}` }
+        }
+      }
+    });
+
+    // 2. Resultados (Bar)
+    charts.income = new Chart(ctxIncome, {
+      type: 'bar',
+      data: {
+        labels: ['Ingresos', 'Gastos', 'Utilidad'],
+        datasets: [{
+          label: 'Monto',
+          data: [kpis.totalRevenue, kpis.totalExpenses, kpis.netResult],
+          backgroundColor: ['#198754', '#dc3545', '#ffc107'], // Verde, Rojo, Amarillo
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        }
+      }
+    });
+  }
+
+  function updateDashboard(data) {
+    const dashboard = document.getElementById('financialDashboard');
+    if (!dashboard) return;
+
+    const kpis = calculateKPIs(data);
+
+    // Actualizar Textos
+    document.getElementById('kpiLiquidity').textContent = kpis.liquidity.toFixed(2);
+    document.getElementById('kpiDebt').textContent = (kpis.debtRatio * 100).toFixed(1) + '%';
+    document.getElementById('kpiMargin').textContent = (kpis.netMargin * 100).toFixed(1) + '%';
+    document.getElementById('kpiNetResult').textContent = formatNumber(kpis.netResult);
+
+    // Mostrar dashboard
+    dashboard.hidden = false;
+    dashboard.style.display = 'block';
+
+    // Renderizar gráficos
+    // Pequeño delay para asegurar visibilidad
+    setTimeout(() => renderCharts(kpis), 100);
   }
 
   function renderResult(data) {
     const container = document.getElementById('resultTablesContainer');
     if (!container) {
-        // Si no existe el contenedor específico, usar resultArea o limpiarlo
-        // Vamos a crear dinámicamente o asumir que reemplazamos el resultTable original
-        // Por compatibilidad, ocultamos la tabla original y usaremos un div nuevo
+      // Si no existe el contenedor específico, usar resultArea o limpiarlo
+      // Vamos a crear dinámicamente o asumir que reemplazamos el resultTable original
+      // Por compatibilidad, ocultamos la tabla original y usaremos un div nuevo
     }
-    
+
     // Ocultar elementos viejos
     if (resultTbody) resultTbody.innerHTML = '';
     if (resultTfoot) resultTfoot.innerHTML = '';
@@ -578,20 +802,20 @@
     // Buscar o crear contenedor de reportes
     let reportContainer = document.getElementById('reportContainer');
     if (!reportContainer) {
-        reportContainer = document.createElement('div');
-        reportContainer.id = 'reportContainer';
-        document.getElementById('resultArea').appendChild(reportContainer);
+      reportContainer = document.createElement('div');
+      reportContainer.id = 'reportContainer';
+      document.getElementById('resultArea').appendChild(reportContainer);
     }
     reportContainer.innerHTML = '';
 
     // 1. Balance de Comprobación
-    reportContainer.innerHTML += createTableHTML('Balance de Comprobación', data.trialBalance);
+    reportContainer.innerHTML += createTableHTML('Balance de Comprobación', data.trialBalance, true, false);
 
-    // 2. Estado de Resultados
-    reportContainer.innerHTML += createTableHTML('Estado de Resultados (Cuentas Nominales)', data.incomeStatement);
+    // 2. Estado de Resultados (con % sobre Ventas)
+    reportContainer.innerHTML += createTableHTML('Estado de Resultados (Cuentas Nominales)', data.incomeStatement, true, true);
 
-    // 3. Estado de Situación Financiera
-    reportContainer.innerHTML += createTableHTML('Estado de Situación Financiera (Cuentas Reales)', data.financialPosition);
+    // 3. Estado de Situación Financiera (con % sobre Activo Total)
+    reportContainer.innerHTML += createTableHTML('Estado de Situación Financiera (Cuentas Reales)', data.financialPosition, true, true);
   }
 
   computeBtn.addEventListener('click', async () => {
@@ -626,13 +850,22 @@
         saveBtn.disabled = true;
         return;
       }
-      renderResult(balanceData); 
+      renderResult(balanceData);
       exportBtn.disabled = false;
       setStatus(`Estados financieros generados correctamente.`, 'success');
 
       // Validar si el balance de comprobación está cuadrado
       const balanceCheck = checkBalanced(balanceData.trialBalance);
       showBalanceStatus(balanceCheck);
+
+      // Calcular y mostrar Dashboard (KPIs + Gráficos)
+      if (balanceCheck.balanced) {
+        updateDashboard(balanceData);
+      } else {
+        // Ocultar si no cuadra para evitar datos erróneos? O mostrar igual con advertencia.
+        // Mejor mostrar lo que se pueda.
+        updateDashboard(balanceData);
+      }
 
       // habilitar guardar si firebase está configurado
       saveBtn.disabled = !(window.firebaseConfig && window.firebaseConfig.projectId);
@@ -650,36 +883,77 @@
 
     const wb = XLSX.utils.book_new();
 
-    const createSheet = (rows, sheetName) => {
-        const data = rows.map(row => ({
+    const createSheet = (rows, sheetName, showPercentage = false) => {
+      const data = rows.map(row => {
+        const obj = {
           'Cuenta': row.Account,
           'Debe': row.Debit,
           'Haber': row.Credit,
           'Saldo': row.Balance
-        }));
+        };
+        if (showPercentage && row.Percentage !== undefined) {
+          obj['% A.V.'] = (row.Percentage * 100).toFixed(2) + '%';
+        }
+        return obj;
+      });
 
-        const ws = XLSX.utils.json_to_sheet(data);
-        const wscols = [{ wch: 50 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
-        ws['!cols'] = wscols;
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wscols = [{ wch: 50 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
+      ws['!cols'] = wscols;
 
-        // Formatos
-        const range = XLSX.utils.decode_range(ws['!ref']);
-        for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-          for (let C = 1; C <= 3; ++C) {
-            const cell_address = { c: C, r: R };
-            const cell_ref = XLSX.utils.encode_cell(cell_address);
-            if (ws[cell_ref]) {
-                ws[cell_ref].z = '#,##0.00';
-                ws[cell_ref].t = 'n';
+      // Formatos
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        // Iterate up to the last numeric column, which is now 4 (index 4 for '% A.V.' if present, otherwise 3 for 'Saldo')
+        const maxCol = showPercentage ? 4 : 3;
+        for (let C = 1; C <= maxCol; ++C) {
+          const cell_address = { c: C, r: R };
+          const cell_ref = XLSX.utils.encode_cell(cell_address);
+          if (ws[cell_ref]) {
+            // Apply number format to 'Debe', 'Haber', 'Saldo'
+            if (C >= 1 && C <= 3) {
+              ws[cell_ref].z = '#,##0.00';
+              ws[cell_ref].t = 'n';
+            }
+            // Apply percentage format to '% A.V.'
+            if (C === 4 && showPercentage) {
+              // The value is already formatted as string "X.XX%"
+              // So we just ensure it's treated as text or keep it as is.
+              // If we wanted it as a number with percentage format, we'd store the raw number.
+              // For now, it's a string, so no specific 'z' format for numbers is needed.
+              ws[cell_ref].t = 's'; // Treat as string
             }
           }
         }
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+      }
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
     };
 
-    createSheet(lastBalance.trialBalance, 'Balance Comprobación');
-    createSheet(lastBalance.incomeStatement, 'Estado Resultados');
-    createSheet(lastBalance.financialPosition, 'Situación Financiera');
+    createSheet(lastBalance.trialBalance, 'Balance Comprobación', false);
+    createSheet(lastBalance.incomeStatement, 'Estado Resultados', true);
+    createSheet(lastBalance.financialPosition, 'Situación Financiera', true);
+
+    // 4. Indicadores Financieros (Nueva hoja)
+    const kpis = calculateKPIs(lastBalance);
+    const kpiData = [
+      { Indicador: 'Liquidez Corriente', Valor: kpis.liquidity, Formula: 'Activo Cte / Pasivo Cte', Interpretacion: kpis.liquidity > 1 ? 'Saludable' : 'Riesgo de Liquidez' },
+      { Indicador: 'Endeudamiento', Valor: kpis.debtRatio, Formula: 'Pasivo Total / Activo Total', Interpretacion: kpis.debtRatio < 0.6 ? 'Saludable' : 'Alto Endeudamiento' },
+      { Indicador: 'Margen Neto', Valor: kpis.netMargin, Formula: 'Utilidad Neta / Ingresos', Interpretacion: 'Rentabilidad por cada peso vendido' },
+      { Indicador: 'Resultado Neto', Valor: kpis.netResult, Formula: 'Ingresos - Gastos', Interpretacion: 'Ganancia o Pérdida final' },
+      { Indicador: '---', Valor: '', Formula: '', Interpretacion: '' },
+      { Indicador: 'Activo Total', Valor: kpis.totalAssets, Formula: '', Interpretacion: '' },
+      { Indicador: 'Pasivo Total', Valor: kpis.totalLiabilities, Formula: '', Interpretacion: '' },
+      { Indicador: 'Patrimonio Total', Valor: kpis.totalEquity, Formula: '', Interpretacion: '' }
+    ];
+
+    const wsKPI = XLSX.utils.json_to_sheet(kpiData);
+    // Ajustar anchos
+    wsKPI['!cols'] = [{ wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 30 }];
+
+    // Formato de porcentaje para Endeudamiento y Margen (índices 1 y 2 del array, fila 3 y 4 del excel aprox)
+    // No es fácil aplicar estilos celda por celda con xlsx community, pero los valores crudos funcionan.
+
+    XLSX.utils.book_append_sheet(wb, wsKPI, 'Indicadores Financieros');
 
     // Detectar si estamos en Electron
     const isElectron = typeof require !== 'undefined' && typeof process !== 'undefined' && process.versions && process.versions.electron;

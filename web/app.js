@@ -121,6 +121,8 @@
       } else {
         error.textContent = '❌ Código de licencia inválido. Verifica el formato.';
         error.hidden = false;
+        // Feedback explícito por si el usuario no ve el texto
+        alert('Código de licencia inválido.\n\nAsegúrate de usar uno de los códigos de la lista de licencias validas.');
       }
     });
 
@@ -136,15 +138,13 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       checkLicenseOnStartup();
-      checkLicenseOnStartup();
       setupLicenseModal();
       initTheme();
     });
   } else {
     checkLicenseOnStartup();
-    checkLicenseOnStartup(); // Primero comprobar licencia
     setupLicenseModal();
-    initTheme(); // Luego tema
+    initTheme();
   }
 
   // ========================================

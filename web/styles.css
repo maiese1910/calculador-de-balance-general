@@ -583,3 +583,79 @@ footer {
     grid-template-columns: 1fr;
   }
 }
+
+/* =========================================
+   8. NOTIFICATIONS & OVERLAYS
+   ========================================= */
+.success-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 2999;
+  animation: fadeInUser 0.3s ease-out;
+}
+
+.success-notification {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  padding: 40px 50px;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  z-index: 3000;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  min-width: 320px;
+  animation: popIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.success-notification .icon {
+  font-size: 3.5rem;
+  margin-bottom: 15px;
+  display: block;
+  animation: bounceUser 1s infinite;
+}
+
+.success-notification h3 {
+  color: var(--text-main);
+  margin: 0 0 10px 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.success-notification p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -40%) scale(0.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes bounceUser {
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
+}

@@ -918,7 +918,25 @@
         return;
       }
 
-      renderResult(balanceData);
+      exportBtn.disabled = false;
+      setStatus(`Estados financieros generados correctamente.`, 'success');
+
+      // Validar si el balance de comprobación está cuadrado
+      const balanceCheck = checkBalanced(balanceData.trialBalance);
+      showBalanceStatus(balanceCheck);
+
+      // Calcular y mostrar Dashboard (KPIs + Gráficos)
+      if (balanceCheck.balanced) {
+        updateDashboard(balanceData);
+      } else {
+        updateDashboard(balanceData);
+      }
+
+    } catch (err) {
+      console.error(err);
+      setStatus('Error leyendo los archivos: ' + (err.message || err), 'error');
+      alert('Error leyendo los archivos: ' + err.message);
+    } finally {
       computeBtn.disabled = false;
     }
   });
@@ -1032,9 +1050,4 @@
     }
   });
 
-} else {
-  XLSX.writeFile(wb, 'estados_financieros.xlsx');
-}
-  });
-
-}) ();
+})();

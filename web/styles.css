@@ -34,24 +34,66 @@
   --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
 }
 
-/* Dark Mode Variables */
+/* Dark Mode Variables Refined */
 body.dark-mode {
   --bg-body: #0f172a;
   --bg-surface: #1e293b;
-  --text-main: #f8fafc;
+  --bg-input: #334155;
+  /* Nuevo color para inputs */
+  --text-main: #f1f5f9;
   --text-secondary: #94a3b8;
   --border-color: #334155;
   --primary: #38bdf8;
-  /* Azul más claro para modo oscuro */
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
-  --shadow-md: 0 5px 15px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 15px 35px rgba(0, 0, 0, 0.4);
+  --primary-hover: #0ea5e9;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 5px 15px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 15px 35px rgba(0, 0, 0, 0.6);
 }
 
-/* Modales en Dark Mode */
-body.dark-mode .modal-content {
+/* Transiciones fluidas globales */
+body,
+.container,
+.card,
+input,
+button,
+.modal-content,
+.balance-status,
+.kpi-card,
+.chart-card,
+.theme-toggle {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+/* Componentes en Dark Mode */
+body.dark-mode .modal-content,
+body.dark-mode .kpi-card,
+body.dark-mode .chart-card,
+body.dark-mode .result-card {
   background: var(--bg-surface);
-  border-color: #334155;
+  border: 1px solid var(--border-color);
+}
+
+body.dark-mode input[type="file"],
+body.dark-mode input[type="text"],
+body.dark-mode .controls,
+body.dark-mode .row.small-controls
+
+/* Asegurar que la tarjeta de opciones también cambie */
+  {
+  background-color: var(--bg-surface);
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+/* Arreglar inputs de archivo que se ven blancos */
+body.dark-mode input[type="file"]::file-selector-button {
+  background-color: #334155;
+  color: #fff;
+  border-color: #475569;
+}
+
+body.dark-mode input[type="file"]::file-selector-button:hover {
+  background-color: #475569;
 }
 
 body.dark-mode .license-input-group input {
@@ -63,6 +105,11 @@ body.dark-mode .license-input-group input {
 body.dark-mode .success-notification {
   background: var(--bg-surface);
   border-color: #334155;
+}
+
+body.dark-mode .logo-usm {
+  filter: brightness(0.9);
+  /* Atenuar un poco el logo blanco si es muy brillante */
 }
 
 * {

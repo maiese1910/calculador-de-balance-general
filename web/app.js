@@ -183,7 +183,7 @@
   const ledgerInput = document.getElementById('ledgerFile');
   const computeBtn = document.getElementById('computeBtn');
   const exportBtn = document.getElementById('exportBtn');
-  const saveBtn = document.getElementById('saveBtn');
+  // const saveBtn = document.getElementById('saveBtn'); // Eliminado
   const resultTable = document.getElementById('resultTable');
   const resultTbody = resultTable.querySelector('tbody');
   const resultTfoot = resultTable.querySelector('tfoot');
@@ -905,43 +905,20 @@
       if (!diaryRows.length && !ledgerRows.length) {
         setStatus('No se encontraron filas legibles en los archivos seleccionados.', 'error');
         exportBtn.disabled = true;
-        saveBtn.disabled = true;
         return;
       }
 
       setStatus('Calculando balances y estados financieros...', 'info');
       const balanceData = computeBalance(diaryRows, ledgerRows);
       lastBalance = balanceData;
+
       if (!balanceData || !balanceData.trialBalance || !balanceData.trialBalance.length) {
         setStatus('No se encontraron cuentas tras el cálculo. Compruebe los encabezados de columnas (Account / Cuenta / Cuenta contable).', 'error');
         exportBtn.disabled = true;
-        saveBtn.disabled = true;
         return;
       }
+
       renderResult(balanceData);
-      exportBtn.disabled = false;
-      setStatus(`Estados financieros generados correctamente.`, 'success');
-
-      // Validar si el balance de comprobación está cuadrado
-      const balanceCheck = checkBalanced(balanceData.trialBalance);
-      showBalanceStatus(balanceCheck);
-
-      // Calcular y mostrar Dashboard (KPIs + Gráficos)
-      if (balanceCheck.balanced) {
-        updateDashboard(balanceData);
-      } else {
-        // Ocultar si no cuadra para evitar datos erróneos? O mostrar igual con advertencia.
-        // Mejor mostrar lo que se pueda.
-        updateDashboard(balanceData);
-      }
-
-      // habilitar guardar si firebase está configurado
-      saveBtn.disabled = !(window.firebaseConfig && window.firebaseConfig.projectId);
-    } catch (err) {
-      console.error(err);
-      setStatus('Error leyendo los archivos: ' + (err.message || err), 'error');
-      alert('Error leyendo los archivos: ' + err.message);
-    } finally {
       computeBtn.disabled = false;
     }
   });
@@ -1055,40 +1032,9 @@
     }
   });
 
-  // Inicialización de Firebase (compat)
-  function initFirebaseIfConfigured() {
-    try {
-      if (window.firebaseConfig && window.firebaseConfig.projectId) {
-        firebase.initializeApp(window.firebaseConfig);
-        window._firestore = firebase.firestore();
-        saveBtn.disabled = false;
-      }
-    } catch (err) {
-      console.warn('Firebase no inicializado:', err);
-    }
-  }
-
-  saveBtn.addEventListener('click', async () => {
-    if (!lastBalance) return alert('No hay balance para guardar');
-    if (!window._firestore) return alert('Firebase no está configurado. Consulte README.');
-    try {
-      saveBtn.disabled = true;
-      const doc = {
-        createdAt: new Date().toISOString(),
-        balance: lastBalance.trialBalance, // Guardar solo el trialBalance o todo? guardemos solo trialBalance por compatibilidad o todo
-        fullReport: lastBalance // Guardar todo por si acaso
-      };
-      const ref = await window._firestore.collection('balances').add(doc);
-      alert('Balance guardado con id: ' + ref.id);
-    } catch (err) {
-      console.error(err);
-      alert('Error guardando en Firestore: ' + err.message);
-    } finally {
-      saveBtn.disabled = false;
-    }
+} else {
+  XLSX.writeFile(wb, 'estados_financieros.xlsx');
+}
   });
 
-  // Intentar inicializar Firebase al cargar
-  initFirebaseIfConfigured();
-
-})();
+}) ();

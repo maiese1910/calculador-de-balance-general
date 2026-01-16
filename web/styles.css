@@ -364,9 +364,41 @@ input[type="checkbox"] {
 }
 
 .btn:disabled {
-  opacity: 0.5;
+  opacity: 0.8;
   cursor: not-allowed;
   filter: grayscale(1);
+  background: var(--border-color);
+  /* Fondo gris claro por defecto */
+  color: var(--text-secondary);
+}
+
+/* Ajustes para botones en Dark Mode */
+body.dark-mode .btn.outline {
+  border-color: #475569;
+  color: #f1f5f9;
+}
+
+body.dark-mode .btn.outline:hover:not(:disabled) {
+  background: #334155;
+  border-color: #64748b;
+}
+
+body.dark-mode .btn:disabled {
+  background: #1e293b;
+  /* Fondo oscuro */
+  color: #475569;
+  /* Texto gris oscuro pero legible */
+  border: 1px solid #334155;
+  opacity: 1;
+  /* Manejar opacidad manualmente */
+}
+
+body.dark-mode .btn.primary:disabled {
+  background: #334155;
+  /* Un poco más claro para distinguir */
+  color: #94a3b8;
+  background-image: none;
+  /* Quitar gradiente */
 }
 
 /* =========================================

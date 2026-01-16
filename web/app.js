@@ -136,11 +136,47 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
       checkLicenseOnStartup();
+      checkLicenseOnStartup();
       setupLicenseModal();
+      initTheme();
     });
   } else {
     checkLicenseOnStartup();
+    checkLicenseOnStartup(); // Primero comprobar licencia
     setupLicenseModal();
+    initTheme(); // Luego tema
+  }
+
+  // ========================================
+  // DARK MODE
+  // ========================================
+  function initTheme() {
+    const toggleBtn = document.getElementById('themeToggle');
+    const savedTheme = localStorage.getItem('theme');
+
+    // Aplicar tema guardado o preferencia de sistema
+    if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.body.classList.add('dark-mode');
+      if (toggleBtn) toggleBtn.textContent = '☀️';
+    }
+
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+        const isDark = document.body.classList.contains('dark-mode');
+
+        // Actualizar icono
+        toggleBtn.textContent = isDark ? '☀️' : '🌙';
+
+        // Guardar preferencia
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
+
+        // Actualizar gráficos si existen para aplicar nuevos colores
+        if (window.lastBalanceData) {
+          renderCharts(window.lastBalanceData.kpis, window.lastBalanceData.balance);
+        }
+      });
+    }
   }
 
   const diaryInput = document.getElementById('diaryFile');
@@ -723,54 +759,74 @@
     };
   }
 
-  function renderCharts(kpis) {
+  let chartInstances = {}; // Guardar instancias de Chart.js para destruirlas al actualizar
+
+  function renderCharts(kpis, balance) {
     if (typeof Chart === 'undefined') return;
 
-    // Chart.defaults.font.family = "'Inter', sans-serif";
+    // Detectar si estamos en dark mode para colores de texto
+    const isDark = document.body.classList.contains('dark-mode');
+    const textColor = isDark ? '#94a3b8' : '#666';
+    const gridColor = isDark ? '#334155' : '#ddd';
+
     const ctxAssets = document.getElementById('chartAssets').getContext('2d');
-    const ctxIncome = document.getElementById('chartIncome').getContext('2d');
+    const ctxResults = document.getElementById('chartIncome').getContext('2d');
 
-    // Destruir anteriores
-    if (charts.assets) charts.assets.destroy();
-    if (charts.income) charts.income.destroy();
+    // Destruir anteriores si existen
+    if (chartInstances.assets) chartInstances.assets.destroy();
+    if (chartInstances.results) chartInstances.results.destroy();
 
-    // 1. Ecuación Patrimonial (Doughnut)
-    charts.assets = new Chart(ctxAssets, {
+    // 1. Gráfico Ecuación Patrimonial (Doughnut)
+    chartInstances.assets = new Chart(ctxAssets, {
       type: 'doughnut',
       data: {
         labels: ['Pasivo', 'Patrimonio'],
         datasets: [{
           data: [kpis.totalLiabilities, kpis.totalEquity],
-          backgroundColor: ['#dc3545', '#0d6efd'], // Rojo, Azul
-          hoverOffset: 4
+          backgroundColor: ['#e81500', '#00ac69'],
+          borderWidth: 0
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom' },
-          title: { display: true, text: `Activo Total: ${formatNumber(kpis.totalAssets)}` }
+          legend: {
+            labels: { color: textColor }
+          }
         }
       }
     });
 
-    // 2. Resultados (Bar)
-    charts.income = new Chart(ctxIncome, {
+    // 2. Gráfico Resultados (Bar)
+    chartInstances.results = new Chart(ctxResults, {
       type: 'bar',
       data: {
         labels: ['Ingresos', 'Gastos', 'Utilidad'],
         datasets: [{
-          label: 'Monto',
+          label: 'Montos',
           data: [kpis.totalRevenue, kpis.totalExpenses, kpis.netResult],
-          backgroundColor: ['#198754', '#dc3545', '#ffc107'], // Verde, Rojo, Amarillo
+          backgroundColor: ['#0061f2', '#f4a100', kpis.netResult >= 0 ? '#00ac69' : '#e81500'],
+          borderRadius: 4
         }]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: false }
+          legend: { display: false },
+          title: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: gridColor },
+            ticks: { color: textColor }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { color: textColor }
+          }
         }
       }
     });

@@ -352,15 +352,15 @@ input[type="checkbox"] {
 }
 
 .btn.outline {
-  background: white;
-  color: var(--main-text);
+  background: transparent;
+  color: var(--text-main);
   border: 2px solid var(--border-color);
 }
 
 .btn.outline:hover:not(:disabled) {
   border-color: var(--primary);
   color: var(--primary);
-  background: #f8faff;
+  background: rgba(0, 97, 242, 0.05); /* Sutil tinte azul */
 }
 
 .btn:disabled {

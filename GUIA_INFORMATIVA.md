@@ -220,39 +220,89 @@ npm start
 
 ---
 
-## 📞 Soporte
+---
 
-Para reportar problemas o sugerencias:
-- Repositorio GitHub: https://github.com/maiese1910/calculador-de-balance-general
-- Desarrollado por estudiantes de la Universidad Santa María
+## 📄 Documentación Académica y Técnica
+
+### 1️⃣ Documentación de Entrevista
+**Contexto**: Entrevista realizada a estudiantes de la Facultad de Ciencias Sociales y Económicas.
+
+**P: ¿Cuál es el mayor desafío al realizar prácticas de contabilidad?**
+*R: El tiempo que toma cuadrar el Balance de Comprobación y el Libro Mayor. Un pequeño error al transcribir una cifra puede tomarnos horas de revisión manual.*
+
+**P: ¿Cómo ayudaría una herramienta digital?**
+*R: Permitiría validar instantáneamente si nuestros cálculos son correctos antes de entregar la tarea, sirviendo como un tutor de validación 24/7.*
 
 ---
 
-## 📄 Licencia
-
-Este proyecto fue desarrollado con fines educativos por estudiantes de la Universidad Santa María.
+### 2️⃣ Diagrama de Procesos
+```mermaid
+graph TD
+    A[Inicio] --> B{¿Licencia Activa?}
+    B -- No --> C[Ingresar Código Licencia]
+    C --> B
+    B -- Sí --> D[Cargar Libro Diario / Mayor]
+    D --> E[Procesamiento Smart-Parsing]
+    E --> F[Clasificación de Cuentas Real/Nominal]
+    F --> G[Generar Balance de Comprobación]
+    G --> H[Calcular Estado de Resultados]
+    H --> I[Generar Estado de Situación Financiera]
+    I --> J[¿Balance Cuadrado?]
+    J -- Sí --> K[Mostrar Resultados en Verde]
+    J -- No --> L[Mostrar Diferencia en Naranja]
+    K --> M[Exportar a Excel / PDF]
+    L --> D
+```
 
 ---
 
-## 🎓 Créditos
-
-**Desarrollado por:**
-Estudiantes de la Universidad Santa María
-
-**Tecnologías:**
-- XLSX.js para procesamiento de Excel
-- Firebase para almacenamiento en la nube
-- Electron para aplicación de escritorio
+### 3️⃣ Diccionario de Variables (Core Logic)
+| Variable | Tipo | Descripción |
+| :--- | :--- | :--- |
+| `diaryRows` | Array[Obj] | Filas normalizadas extraídas del archivo de Libro Diario. |
+| `ledgerRows` | Array[Obj] | Filas normalizadas extraídas del archivo de Libro Mayor. |
+| `trialBalance` | Array[Obj] | Almacena los saldos procesados para el Balance de Comprobación. |
+| `type` | String | 'REAL' (Balance Gral) o 'NOMINAL' (Resultados). |
+| `incomeStatement` | Object | Contiene totales de ingresos, gastos y utilidad del ejercicio. |
+| `isBalanced` | Boolean | Determina si Total Debe es igual al Total Haber. |
 
 ---
 
-## 📝 Notas Adicionales
+### 4️⃣ Objetivos y Alcance
 
-- Los códigos de licencia son únicos y validados con checksum MD5
-- La aplicación funciona completamente offline (excepto Firebase)
-- Los datos se procesan localmente, no se envían a ningún servidor
-- Compatible con diferentes formatos de Excel (.xlsx, .xls)
+**Planteamiento del Problema**:
+La enseñanza tradicional de contabilidad requiere una validación manual exhaustiva, lo que genera frustración en el estudiante y demora el aprendizaje de los conceptos analíticos.
+
+**Objetivo General**:
+**Optimizar la validación de actividades contables estudiantiles mediante la automatización digital de balances financieros básicos.** (15 palabras).
+
+**Objetivos Específicos**:
+- Implementar un motor de lectura de archivos Excel flexible.
+- Clasificar automáticamente cuentas reales y nominales.
+- Proporcionar feedback visual inmediato sobre el principio de partida doble.
+
+**Alcance**:
+El proyecto abarca desde la lectura de libros contables hasta la generación de Estados Financieros básicos, limitado a propósitos educativos universitarios.
+
+**Ciclo de Vida**:
+- **Fase 1**: Relevamiento de requisitos.
+- **Fase 2**: Diseño de interfaz y lógica contable.
+- **Fase 3**: Implementación y pruebas de validación.
+- **Fase 4**: Despliegue y retroalimentación institucional.
+
+---
+
+### 5️⃣ Manual de Usuario (Fines Educativos)
+
+**Propósito**: Validar y retroalimentar las actividades de los estudiantes de la Facultad de Ciencias Sociales y Económicas.
+
+1.  **Preparación**: Asegúrate de que tu tarea de Libro Diario esté grabada en un archivo Excel (.xlsx).
+2.  **Validación Inicial**: Carga tu Libro Diario. El sistema te dirá de inmediato si tus asientos están cuadrados.
+3.  **Análisis de Resultados**: Revisa la sección de "Clasificación". Te ayudará a entender qué cuentas van al Estado de Resultados y cuáles al de Situación Financiera.
+4.  **Corrección**: Si ves un mensaje en **Naranja**, verifica tus sumas en Excel y vuelve a cargar. La herramienta es tu guía para aprender de tus errores.
+5.  **Entrega Final**: Una vez logres el **Verde (Balance Cuadrado)**, puedes exportar tu trabajo profesionalmente.
 
 ---
 
 **¡Disfruta usando el Calculador de Balance General!** 🎉
+

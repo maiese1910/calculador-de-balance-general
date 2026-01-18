@@ -35,8 +35,21 @@
     </header>
 
     <div class="row">
-      <label>Cargar Archivo Excel (Libro Diario o Mayor)</label>
-      <input id="inputFile" type="file" accept=".xlsx,.xls" />
+      <h2 class="section-title">Validador de Libros</h2>
+      <div id="validationResults" class="validation-results" hidden></div>
+    </div>
+
+    <div class="upload-grid">
+      <div class="upload-card">
+        <label for="inputDiary">📂 Cargar Libro Diario (.xlsx)</label>
+        <input id="inputDiary" type="file" accept=".xlsx,.xls" />
+        <small>Formato: Fecha, Código, Cuenta, Debe, Haber</small>
+      </div>
+      <div class="upload-card">
+        <label for="inputLedger">isbn Cargar Libro Mayor (.xlsx)</label>
+        <input id="inputLedger" type="file" accept=".xlsx,.xls" />
+        <small>Formato: Código, Cuenta, Debe, Haber</small>
+      </div>
     </div>
 
     <div class="row small-controls">

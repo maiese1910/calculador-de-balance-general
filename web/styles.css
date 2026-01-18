@@ -360,7 +360,8 @@ input[type="checkbox"] {
 .btn.outline:hover:not(:disabled) {
   border-color: var(--primary);
   color: var(--primary);
-  background: rgba(0, 97, 242, 0.05); /* Sutil tinte azul */
+  background: rgba(0, 97, 242, 0.05);
+  /* Sutil tinte azul */
 }
 
 .btn:disabled {
@@ -804,4 +805,157 @@ footer {
   50% {
     transform: translateY(-10px);
   }
+}
+
+/* Estilos para el validador de libros */
+.section-title {
+  width: 100%;
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  color: var(--primary);
+}
+
+.upload-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .upload-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.upload-card {
+  background: var(--bg-surface);
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.validation-results {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 8px;
+  background-color: #f8f9fa;
+  margin-bottom: 1rem;
+  border-left: 5px solid #ccc;
+  animation: fadeInUser 0.3s ease;
+}
+
+body.dark-mode .validation-results {
+  background-color: #1e293b;
+  border-left-color: #475569;
+}
+
+.validation-results.success {
+  background-color: #d4edda;
+  border-left-color: #28a745;
+  color: #155724;
+}
+
+body.dark-mode .validation-results.success {
+  background-color: rgba(40, 167, 69, 0.2);
+  color: #d4edda;
+}
+
+.validation-results.warning {
+  background-color: #fff3cd;
+  border-left-color: #ffc107;
+  color: #856404;
+}
+
+body.dark-mode .validation-results.warning {
+  background-color: rgba(255, 193, 7, 0.2);
+  color: #fff3cd;
+}
+
+.validation-results.error {
+  background-color: #f8d7da;
+  border-left-color: #dc3545;
+  color: #721c24;
+}
+
+body.dark-mode .validation-results.error {
+  background-color: rgba(220, 53, 69, 0.2);
+  color: #f8d7da;
+}
+
+
+.validation-item {
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+/* =========================================
+   9. DARK MODE REFINEMENTS (Results & Tables)
+   ========================================= */
+body.dark-mode .table-section {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-color);
+  color: var(--text-main);
+}
+
+body.dark-mode .table-section h3 {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-main);
+  border-bottom-color: var(--border-color);
+}
+
+body.dark-mode table.result-table th {
+  background-color: #1e293b !important;
+  color: #94a3b8;
+  border-bottom-color: var(--border-color);
+}
+
+body.dark-mode table.result-table td {
+  color: var(--text-main);
+  border-bottom-color: var(--border-color);
+}
+
+body.dark-mode table.result-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
+body.dark-mode tfoot tr.totals-row td,
+body.dark-mode tfoot tr.totals-row th {
+  background-color: var(--bg-surface) !important;
+  border-top-color: var(--primary);
+  color: var(--text-main);
+}
+
+/* Better contrast for specific text classes in dark mode */
+body.dark-mode .balance-positive {
+  color: #4ade80 !important;
+  /* Brighter green */
+}
+
+body.dark-mode .balance-negative {
+  color: #f87171 !important;
+  /* Brighter red */
+}
+
+body.dark-mode .balance-zero {
+  color: #64748b !important;
+}
+
+/* Ensure result card is dark */
+body.dark-mode #resultArea,
+body.dark-mode .result-card {
+  background-color: transparent;
+  color: var(--text-main);
+}
+
+body.dark-mode .upload-card {
+  background-color: var(--bg-surface);
+  border-color: var(--border-color);
 }

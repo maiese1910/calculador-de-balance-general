@@ -179,7 +179,9 @@
     }
   }
 
-  const fileInput = document.getElementById('inputFile');
+  // Nuevos inputs separados
+  const inputDiary = document.getElementById('inputDiary');
+  const inputLedger = document.getElementById('inputLedger');
   const computeBtn = document.getElementById('computeBtn');
   const exportBtn = document.getElementById('exportBtn');
   // const saveBtn = document.getElementById('saveBtn'); // Eliminado
@@ -211,19 +213,64 @@
           // Intentar analizar a JSON usando la fila de encabezado
           let json = XLSX.utils.sheet_to_json(ws, { defval: null });
 
-          // Fallback: si no devuelve filas, intentar analizar como matriz de matrices y construir objetos
+          // VALIDACIÓN DE ENCABEZADOS:
+          // A veces la primera fila es un título (ej. "LIBRO MAYOR") y XLSX la usa como header,
+          // produciendo JSON basura y saltándose el fallback inteligente.
+          // Comprobamos si las keys del JSON devuelto contienen palabras clave esperadas.
+          if (json && json.length > 0) {
+            const firstRowKeys = Object.keys(json[0]).map(k => String(k).toLowerCase());
+            const expected = ['fecha', 'date', 'codigo', 'code', 'cuenta', 'account', 'detalle', 'debe', 'debit', 'haber', 'credit'];
+            const hasValidHeaders = firstRowKeys.some(k => expected.some(exp => k.includes(exp)));
+
+            if (!hasValidHeaders) {
+              console.log('Encabezados automáticos no parecen contables. Forzando búsqueda manual...');
+              json = []; // Forzar fallback
+            }
+          }
+
+          // Fallback: si no devuelve filas o son invalidas, intentar analizar como matriz de matrices y construir objetos
           if ((!json || json.length === 0)) {
             const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-            // buscar la primera fila que parezca un encabezado (tiene algunos valores no nulos)
+            // Smarter Header Detection
+            // Instead of just taking the first non-empty row (which fails if there is a title like 'LIBRO MAYOR'),
+            // we look for known keywords to identify the real header row.
             let headerRowIndex = -1;
-            for (let i = 0; i < Math.min(5, aoa.length); i++) {
+            let maxScore = 0;
+
+            const keywords = ['fecha', 'date', 'dia', 'código', 'codigo', 'code', 'cuenta', 'account', 'descripción', 'descripcion', 'detalle', 'debe', 'haber', 'debit', 'credit', 'saldo', 'balance'];
+
+            // Scan first 15 rows (increased range)
+            for (let i = 0; i < Math.min(15, aoa.length); i++) {
               const row = aoa[i];
-              if (row && row.some(v => v !== null && String(v).trim() !== '')) {
+              if (!row) continue;
+
+              let score = 0;
+              let hasContent = false;
+
+              row.forEach(cell => {
+                if (cell !== null && String(cell).trim() !== '') {
+                  hasContent = true;
+                  const cellStr = String(cell).toLowerCase().trim();
+                  if (keywords.some(k => cellStr.includes(k))) {
+                    score++;
+                  }
+                }
+              });
+
+              // If we found a row with more keywords, it's likely the header
+              if (score > maxScore) {
+                maxScore = score;
                 headerRowIndex = i;
-                break;
+              } else if (headerRowIndex === -1 && hasContent && maxScore === 0) {
+                // Fallback: preserve first non-empty row if no keywords found yet
+                headerRowIndex = i;
               }
             }
+
             if (headerRowIndex >= 0) {
+              console.log('Fila de encabezado detectada en índice:', headerRowIndex);
+
+
               const headers = aoa[headerRowIndex].map(h => h === null ? '' : String(h).trim());
               const rows = [];
               for (let r = headerRowIndex + 1; r < aoa.length; r++) {
@@ -260,13 +307,37 @@
     });
   }
 
-  // Normalizar claves de fila (eliminar espacios en nombres de columnas)
+  // Normalizar claves de fila (eliminar espacios en nombres de columnas, trim, pero mantener case para display)
+  // La comparación real se hace en getFirstValue de forma insensible
   function normalizeRowKeys(obj) {
     const out = {};
     for (const k of Object.keys(obj)) {
       out[String(k).trim()] = obj[k];
     }
     return out;
+  }
+
+  // Helper para buscar valores ignorando mayúsculas/minúsculas y acentos
+  function getFirstValue(row, keys) {
+    const rowKeys = Object.keys(row);
+
+    for (const k of keys) {
+      // 1. Busqueda Exacta
+      if (row[k] !== undefined && row[k] !== null && row[k] !== '') return row[k];
+
+      // 2. Busqueda Insensible (Case + Acentos)
+      const kNorm = String(k).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      const foundKey = rowKeys.find(rk => {
+        const rkNorm = String(rk).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        return rkNorm === kNorm;
+      });
+
+      if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && row[foundKey] !== '') {
+        return row[foundKey];
+      }
+    }
+    return null;
   }
 
   // Estandarizar filas a estructura fija de 5 columnas
@@ -276,12 +347,7 @@
 
     // Detectar encabezados de la primera fila
     const firstObj = normalizeRowKeys(rows[0]);
-    const keys = Object.keys(firstObj);
-
-    // Mapeo de columnas basado en índices si no coinciden nombres, 
-    // o basado en nombres si existen.
-    // El usuario pidió: 1 fecha, 2 codigo, 3 nombre, 4 debe, 5 haber.
-    // Intentaremos detectar inteligentemente.
+    // const keys = Object.keys(firstObj); // Ya no es estricto
 
     return rows.map(r => {
       const nr = normalizeRowKeys(r);
@@ -393,27 +459,118 @@
     const statusDiv = document.getElementById('balanceStatus');
     if (!statusDiv) return;
 
-    statusDiv.hidden = false;
-    statusDiv.className = 'balance-status';
+    // Solo mostrar si es el balance final calculado
+    if (balanceCheck.isFinalBalance) {
+      statusDiv.hidden = false;
+      statusDiv.className = 'balance-status';
 
-    if (balanceCheck.balanced) {
-      statusDiv.classList.add('balanced');
-      statusDiv.innerHTML = `
-        <div>${balanceCheck.message}</div>
-        <div class="balance-status-details">
-          Total Debe: ${formatNumber(balanceCheck.totalDebit)} | 
-          Total Haber: ${formatNumber(balanceCheck.totalCredit)}
-        </div>
-      `;
-    } else {
-      statusDiv.classList.add('unbalanced');
-      statusDiv.innerHTML = `
-        <div>${balanceCheck.message}</div>
-        <div class="balance-status-details">
-          Total Debe: ${formatNumber(balanceCheck.totalDebit)} | 
-          Total Haber: ${formatNumber(balanceCheck.totalCredit)}
-        </div>
-      `;
+      if (balanceCheck.balanced) {
+        statusDiv.classList.add('balanced');
+        statusDiv.innerHTML = `
+          <div>${balanceCheck.message}</div>
+          <div class="balance-status-details">
+            Total Debe: ${formatNumber(balanceCheck.totalDebit)} | 
+            Total Haber: ${formatNumber(balanceCheck.totalCredit)}
+          </div>
+        `;
+      } else {
+        statusDiv.classList.add('unbalanced');
+        statusDiv.innerHTML = `
+          <div>${balanceCheck.message}</div>
+          <div class="balance-status-details">
+            Total Debe: ${formatNumber(balanceCheck.totalDebit)} | 
+            Total Haber: ${formatNumber(balanceCheck.totalCredit)}
+          </div>
+        `;
+      }
+    }
+  }
+
+  // ========================================
+  // VALIDACIÓN DE LIBROS (NUEVO)
+  // ========================================
+
+  function validateBooks(diaryRows, ledgerRows) {
+    const resultsDiv = document.getElementById('validationResults');
+    if (!resultsDiv) return;
+
+    resultsDiv.innerHTML = '';
+    resultsDiv.hidden = false;
+    resultsDiv.className = 'validation-results';
+
+    let hasErrors = false;
+    let hasWarnings = false;
+
+    const addMsg = (msg, type) => {
+      const div = document.createElement('div');
+      div.className = 'validation-item';
+      let icon = 'ℹ️';
+      if (type === 'success') icon = '✅';
+      if (type === 'warning') icon = '⚠️';
+      if (type === 'error') icon = '❌';
+
+      div.innerHTML = `<span>${icon}</span> <span>${msg}</span>`;
+      resultsDiv.appendChild(div);
+
+      if (type === 'error') hasErrors = true;
+      if (type === 'warning') hasWarnings = true;
+    };
+
+    // 1. Validar Libro Diario
+    let diaryTotalDebit = 0;
+    let diaryTotalCredit = 0;
+    if (diaryRows && diaryRows.length > 0) {
+      diaryRows.forEach(r => {
+        diaryTotalDebit += Number(r.Debit) || 0;
+        diaryTotalCredit += Number(r.Credit) || 0;
+      });
+
+      const diaryDiff = Math.abs(diaryTotalDebit - diaryTotalCredit);
+      if (diaryDiff < 0.01) {
+        addMsg(`Libro Diario Cuadrado ($ ${formatNumber(diaryTotalDebit)})`, 'success');
+      } else {
+        addMsg(`Libro Diario Descuadrado (Dif: $ ${formatNumber(diaryDiff)})`, 'error');
+      }
+    }
+
+    // 2. Validar Libro Mayor
+    let ledgerTotalDebit = 0;
+    let ledgerTotalCredit = 0;
+    if (ledgerRows && ledgerRows.length > 0) {
+      ledgerRows.forEach(r => {
+        ledgerTotalDebit += Number(r.Debit) || 0;
+        ledgerTotalCredit += Number(r.Credit) || 0;
+      });
+
+      const ledgerDiff = Math.abs(ledgerTotalDebit - ledgerTotalCredit);
+      if (ledgerDiff < 0.01) {
+        addMsg(`Libro Mayor Cuadrado ($ ${formatNumber(ledgerTotalDebit)})`, 'success');
+      } else {
+        addMsg(`Libro Mayor Descuadrado (Dif: $ ${formatNumber(ledgerDiff)})`, 'error');
+      }
+    }
+
+    // 3. Validar Consistencia (Si ambos existen)
+    if (diaryRows && diaryRows.length > 0 && ledgerRows && ledgerRows.length > 0) {
+      const diffDebit = Math.abs(diaryTotalDebit - ledgerTotalDebit);
+      const diffCredit = Math.abs(diaryTotalCredit - ledgerTotalCredit);
+
+      if (diffDebit < 1 && diffCredit < 1) { // Tolerancia $1 por redondeos
+        addMsg('Consistencia Correcta: Totales de Diario y Mayor coinciden.', 'success');
+      } else {
+        addMsg(`Inconsistencia: Los totales del Diario difieren del Mayor.`, 'warning');
+        if (diffDebit >= 1) addMsg(`- Diferencia en Débitos: $ ${formatNumber(diffDebit)}`, 'warning');
+        if (diffCredit >= 1) addMsg(`- Diferencia en Créditos: $ ${formatNumber(diffCredit)}`, 'warning');
+      }
+    }
+
+    if (hasErrors) resultsDiv.classList.add('error');
+    else if (hasWarnings) resultsDiv.classList.add('warning');
+    else resultsDiv.classList.add('success');
+
+    if (!diaryRows?.length && !ledgerRows?.length) {
+      addMsg('No se cargaron archivos para validar.', 'warning');
+      resultsDiv.className = 'validation-results warning';
     }
   }
 
@@ -1018,67 +1175,97 @@
   computeBtn.addEventListener('click', async () => {
 
     console.log('Click en boton generar');
-    alert('Iniciando proceso...');
-    const file = fileInput.files[0];
-    if (!file) {
-      alert('Seleccione un archivo de Excel (Libro Diario o Mayor)');
+
+    const fileDiary = inputDiary.files[0];
+    const fileLedger = inputLedger.files[0];
+
+    if (!fileDiary && !fileLedger) {
+      alert('Seleccione al menos un archivo (Libro Diario o Libro Mayor)');
       return;
     }
+
+    alert('Iniciando proceso de validación y cálculo...');
+
     try {
       computeBtn.disabled = true;
-      setStatus('Leyendo archivo...', 'info');
+      setStatus('Leyendo archivos...', 'info');
 
-      const rows = await readExcelFile(file);
-      console.log('Filas leídas:', rows.length, rows.slice(0, 5));
+      // Limpiar resultados anteriores
+      if (document.getElementById('validationResults')) document.getElementById('validationResults').hidden = true;
 
-      if (!rows || !rows.length) {
-        setStatus('No se encontraron filas legibles en el archivo.', 'error');
+      let diaryRows = [];
+      let ledgerRows = [];
+
+      // Leer Diario
+      if (fileDiary) {
+        try {
+          diaryRows = await readExcelFile(fileDiary);
+        } catch (e) {
+          console.error('Error leyendo diario', e);
+          setStatus('Error al leer Libro Diario', 'error');
+          return;
+        }
+      }
+
+      // Leer Mayor
+      if (fileLedger) {
+        try {
+          ledgerRows = await readExcelFile(fileLedger);
+        } catch (e) {
+          console.error('Error leyendo mayor', e);
+          setStatus('Error al leer Libro Mayor', 'error');
+          return;
+        }
+      }
+
+      if ((!diaryRows || !diaryRows.length) && (!ledgerRows || !ledgerRows.length)) {
+        setStatus('No se encontraron datos en los archivos seleccionados.', 'error');
         exportBtn.disabled = true;
         return;
       }
 
-      // HEURÍSTICA: ¿Es Diario o Mayor?
-      // Si hay muchas repeteciones de la misma cuenta, es Diario.
-      // Si cada cuenta aparece solo una vez (o muy pocas veces), es Mayor/Balance de Comprobación.
+      // Ejecutar Validador
+      validateBooks(diaryRows, ledgerRows);
 
-      const accountCounts = {};
-      let maxRepeats = 0;
-      rows.forEach(r => {
-        const key = r.Account || 'UNKNOWN';
-        accountCounts[key] = (accountCounts[key] || 0) + 1;
-        if (accountCounts[key] > maxRepeats) maxRepeats = accountCounts[key];
-      });
+      // Calcular Balance General Unificado (Fusionando lo que haya)
+      // Nota: Si hay ambos, computeBalance sumará ambos. 
+      // Lo ideal para el balance general es usar los dos si son complementarios, 
+      // O usar el Mayor si es un resumen.
+      // Suposición: Si el usuario sube ambos, quiere validar consistencia, 
+      // pero el Balance General sale del Mayor (o del Diario acumulado).
+      // Si sumamos ambos, duplicamos.
 
-      let diaryRows = [];
-      let ledgerRows = [];
-      let isDiaryDetected = false;
+      // Lógica de decisión de fuente para Balance General:
+      // 1. Si hay Mayor, usar Mayor.
+      // 2. Si no, usar Diario.
+      // 3. (Caso borde) Si el usuario quiere mezclar, el sistema actual 'computeBalance' suma todo.
+      //    Para evitar duplicidad si suben lo mismo:
+      //    Vamos a usar solo UNO para el cálculo del Balance General final, priorizando el Mayor si existe y está cuadrado.
 
-      // Umbral: Si el máximo de repeticiones es mayor a 1, asumimos Diario.
-      // (En un Mayor estricto, cada cuenta debería ser única).
-      if (maxRepeats > 1) {
-        diaryRows = rows;
-        isDiaryDetected = true;
-        setStatus(`Detectado: Libro Diario (${rows.length} registros). Procesando...`, 'info');
-      } else {
-        ledgerRows = rows;
-        isDiaryDetected = false;
-        setStatus(`Detectado: Libro Mayor / Balance (${rows.length} cuentas únicas). Procesando...`, 'info');
-      }
+      // Decisión: Usaremos TODOS los datos disponibles para el 'computeBalance' original 
+      // porque así estaba diseñado (sumar todos los inputs).
+      // PERO, el usuario podría estar subiendo el mismo contenido dos veces (formato diario y formato mayor).
+      // ADVERTENCIA: computeBalance suma las filas.
 
-      // Si es un Mayor, estandarizar para asegurar que los saldos se interpreten
-      // Si viene solo columna "Saldo" y no "Débito/Crédito", computeBalance podría necesitar ajuste,
-      // pero standardizeRows intenta mapear todo.
+      // Cambiamos estrategia: pasar SOLO el que parezca más completo o ambos si así se desea?
+      // El requerimiento dice: "Carga tu libro diario y libro mayor... Genera un balance"
+      // Si sube ambos, ¿se duplican?
+      // Hagamos que computeBalance use ambos, pero advirtamos o dejemos que el usuario decida.
+      // O mejor: Si sube ambos, asumimos que son complementarios (ej. movimientos del mes y saldos anteriores)
+      // O que son redundantes. Si son redundantes, el balance se duplicará.
+
+      // FIX: Para el Balance General, usaremos la unión de ambos, asumiendo que el usuario sabe lo que hace.
+      // Si se duplica, se verá en los montos.
 
       const balanceData = computeBalance(diaryRows, ledgerRows);
 
-      // Forzar flag real
-      balanceData.isDiary = isDiaryDetected;
+      // Flag para exportación
+      balanceData.isDiary = (diaryRows && diaryRows.length > 0);
 
       lastBalance = balanceData;
 
-
       if (!balanceData || !balanceData.trialBalance || !balanceData.trialBalance.length) {
-        setStatus('No se encontraron cuentas tras el cálculo. Compruebe los encabezados de columnas (Account / Cuenta / Cuenta contable).', 'error');
+        setStatus('No se encontraron cuentas tras el cálculo.', 'error');
         exportBtn.disabled = true;
         return;
       }
@@ -1086,21 +1273,21 @@
       exportBtn.disabled = false;
       setStatus(`Estados financieros generados correctamente.`, 'success');
 
-      // Validar si el balance de comprobación está cuadrado
+      // Validar si el balance de comprobación FINAL está cuadrado
       const balanceCheck = checkBalanced(balanceData.trialBalance);
+      balanceCheck.isFinalBalance = true; // Para diferenciar en UI
       showBalanceStatus(balanceCheck);
 
-      // Calcular y mostrar Dashboard (KPIs + Gráficos)
-      if (balanceCheck.balanced) {
-        updateDashboard(balanceData);
-      } else {
-        updateDashboard(balanceData);
-      }
+      // Calcular y mostrar Dashboard
+      updateDashboard(balanceData);
+
+      // Mostrar tabla de resultados
+      renderResult(balanceData);
 
     } catch (err) {
       console.error(err);
-      setStatus('Error leyendo los archivos: ' + (err.message || err), 'error');
-      alert('Error leyendo los archivos: ' + err.message);
+      setStatus('Error procesando: ' + (err.message || err), 'error');
+      alert('Error procesando: ' + err.message);
     } finally {
       computeBtn.disabled = false;
     }
@@ -1110,8 +1297,22 @@
     if (!lastBalance) return;
 
     // Función helper para añadir hoja con estilo profesional
-    const addToSheet = (wb, name, title, blocks) => {
+    const addToSheet = (wb, name, title, blocks, options = {}) => {
       const wsData = [];
+
+      // Configuración de columnas por defecto
+      const headers = options.headers || ['Cuenta', 'Debe', 'Haber', 'Saldo', '% A.V.'];
+      const mapRow = options.mapRow || ((r) => {
+        let perc = '';
+        if (r.Percentage !== undefined) perc = (r.Percentage * 100).toFixed(2) + '%';
+        return [
+          r.CleanName || r.Account,
+          r.Debit,
+          r.Credit,
+          r.Balance,
+          perc
+        ];
+      });
 
       // Título Reporte
       wsData.push([title]);
@@ -1131,33 +1332,39 @@
         }
 
         // Encabezados de tabla
-        wsData.push(['Cuenta', 'Debe', 'Haber', 'Saldo', '% A.V.']);
+        wsData.push(headers);
         currentRow++;
 
         // Filas de datos
         block.rows.forEach(r => {
-          let perc = '';
-          if (r.Percentage !== undefined) perc = (r.Percentage * 100).toFixed(2) + '%';
-
-          wsData.push([
-            r.CleanName || r.Account, // Preferir nombre limpio si existe
-            r.Debit,
-            r.Credit,
-            r.Balance,
-            perc
-          ]);
+          wsData.push(mapRow(r));
           currentRow++;
         });
 
         // Totales de bloque
         if (block.rows.length > 0) {
           const sumBal = block.rows.reduce((a, b) => a + Number(b.Balance), 0);
-          wsData.push(['Total ' + block.title, '', '', sumBal, '']);
+          // Ajuste básico para totales: Asumimos que el saldo está en la columna index 3 (D) o 4 (E) aprox.
+          // Para "Libro Mayor" con Código, los índices cambian. 
+          // Haremos algo genérico: Poner "Total" en col 0 y el saldo en una columna final si coincide.
+
+          // Por simplicidad en esta versión flexible, solo ponemos Total Saldo alineado a la derecha
+          const totalRow = new Array(headers.length).fill('');
+          totalRow[0] = 'Total ' + block.title;
+
+          // Buscar columna de saldo por nombre
+          const balIdx = headers.findIndex(h => h.toLowerCase().includes('saldo'));
+          if (balIdx > -1) totalRow[balIdx] = sumBal;
+          else totalRow[headers.length - 1] = sumBal; // Fallback al final
+
+          wsData.push(totalRow);
           currentRow++;
           wsData.push(['']); // Espacio tras bloque
           currentRow++;
         } else {
-          wsData.push(['(Sin cuentas)', '', '', 0, '']);
+          const emptyRow = new Array(headers.length).fill('');
+          emptyRow[0] = '(Sin cuentas)';
+          wsData.push(emptyRow);
           currentRow++;
           wsData.push(['']);
           currentRow++;
@@ -1170,13 +1377,17 @@
       // Aplicar merges
       ws['!merges'] = merges;
 
-      // Anchos
-      ws['!cols'] = [{ wch: 50 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
+      // Anchos (Estimación básica)
+      const wscols = headers.map((h, i) => {
+        if (i === 0) return { wch: 50 }; // Nombre/Código ancho
+        return { wch: 15 }; // Montos
+      });
+      ws['!cols'] = wscols;
 
       // Formato de celdas (Iterar para aplicar estilo numérico)
       const range = XLSX.utils.decode_range(ws['!ref']);
       for (let R = range.s.r; R <= range.e.r; ++R) {
-        for (let C = 1; C <= 3; ++C) { // Debe, Haber, Saldo
+        for (let C = 0; C <= headers.length; ++C) {
           const cellRef = XLSX.utils.encode_cell({ c: C, r: R });
           if (ws[cellRef] && typeof ws[cellRef].v === 'number') {
             ws[cellRef].z = '#,##0.00';
@@ -1235,15 +1446,23 @@
     ], { origin: -1 });
 
 
-    // (Optional) Hoja: Libro Mayor
-    // Solo si se generó desde Libro Diario
-    if (lastBalance.isDiary) {
-      addToSheet(wb, 'Libro Mayor', 'LIBRO MAYOR', [
-        { title: 'MOVIMIENTOS POR CUENTA', rows: lastBalance.trialBalance }
-      ]);
-    }
+    // 3. Hoja: Libro Mayor (Formato Especifico: Código, Cuenta, Debe, Haber)
+    // Se genera SIEMPRE que hay datos, usando trialBalance (que es la lista unificada)
+    addToSheet(wb, 'Libro Mayor', 'LIBRO MAYOR',
+      [{ title: 'MOVIMIENTOS POR CUENTA', rows: lastBalance.trialBalance }],
+      {
+        headers: ['Código', 'Cuenta', 'Debe', 'Haber', 'Saldo'],
+        mapRow: (r) => [
+          r.Code || '', // Código primero
+          r.CleanName || r.Account,
+          r.Debit,
+          r.Credit,
+          r.Balance
+        ]
+      }
+    );
 
-    // 3. Hoja: Balance de Comprobación
+    // 4. Hoja: Balance de Comprobación (Formato Standard con %)
     addToSheet(wb, 'B. Comprobación', 'BALANCE DE COMPROBACIÓN', [
       { title: 'TODAS LAS CUENTAS', rows: lastBalance.trialBalance }
     ]);

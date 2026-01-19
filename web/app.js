@@ -655,8 +655,13 @@
       });
     };
 
-    addRows(diaryRows);
-    addRows(ledgerRows);
+    // Priorización: Si hay Libro Mayor, usarlo como fuente principal. 
+    // Si no, usar Libro Diario. Esto evita duplicar montos si ambos contienen lo mismo.
+    if (ledgerRows && ledgerRows.length > 0) {
+      addRows(ledgerRows);
+    } else if (diaryRows && diaryRows.length > 0) {
+      addRows(diaryRows);
+    }
 
     // Clasificación Estricta de cuentas
     const classifyAccount = (name, codeStr) => {

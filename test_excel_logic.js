@@ -84,8 +84,11 @@ function computeBalance(diaryRows, ledgerRows) {
         });
     };
 
-    addRows(diaryRows);
-    addRows(ledgerRows);
+    if (ledgerRows && ledgerRows.length > 0) {
+        addRows(ledgerRows);
+    } else if (diaryRows && diaryRows.length > 0) {
+        addRows(diaryRows);
+    }
 
     const result = [];
     for (const [account, vals] of map.entries()) {
@@ -131,10 +134,10 @@ console.log("Result:", JSON.stringify(result, null, 2));
 
 if (result.length === 1 &&
     result[0].Account === "1101 - CAJA" &&
-    result[0].Debit === 15000) {
-    console.log("TEST PASSED: Case normalization merged accounts.");
+    result[0].Debit === 5000) {
+    console.log("TEST PASSED: Prioritization logic worked (only Ledger used).");
 } else {
-    console.log("TEST FAILED: Accounts not merged.");
+    console.log("TEST FAILED: Duplication still occurs or prioritization failed.");
 }
 
 console.log("Running test with only Diary...");
